@@ -1,7 +1,8 @@
 const $ = s => document.querySelector(s);
 const app = $("#app");
-let me = null, room = null, eventSource = null, player = null, vkPlayer = null, localVideo = null;
+let me = null, room = null, eventSource = null, player = null, vkPlayer = null, localVideo = null, rutubeFrame = null;
 let suppress = false, syncTimer = null, lastAppliedSeq = 0, remoteApplyUntil = 0, lastYTPosition = null, lastVKPosition = null;
+let rutubePosition = 0, rutubeReady = false, rutubePlaying = false, lastRutubePosition = null;
 
 const externalLoaders = {
   youtube: null,
@@ -549,8 +550,47 @@ function bindVkSearch(root,{onPick,onAnime}={}){
       animeResults.querySelectorAll(".anime-result").forEach(x=>x.classList.remove("selected"));btn.classList.add("selected");
       const sources=Array.isArray(item.sources)?item.sources:[];
       animeSelected.hidden=false;
-      animeSelected.innerHTML=`<div class="anime-selected-card">${item.poster?`<img src="${esc(item.poster)}" alt="">`:""}<div><span class="eyebrow">ВЫБРАНО</span><b>${esc(item.title)}</b><small>AniList — это каталог, а не хранилище серий.</small></div></div>
-        ${sources.length?`<div class="anime-source-list"><span>Доступные источники</span>${sources.slice(0,6).map(src=>`<a href="${esc(src.url)}" target="_blank" rel="noopener noreferrer">${esc(src.site||"Источник")}${src.title?` · ${esc(src.title)}`:""} ${cwIcon("arrow",14)}</a>`).join("")}</div>`:'<div class="anime-no-source">Для этого тайтла AniList не вернул доступных источников.</div>'}`;
+      animeSelected.innerHTML=`<div class="anime-selected-card">${item.poster?`<img src="${esc(item.poster)}" alt="">`:""}<div><span class="eyebrow">ВЫБРАНО</span><b>${esc(item.title)}</b><small>Каталог найден. Теперь ищем воспроизводимый источник в России.</small></div></div>
+        <div class="anime-rutube-box">
+          <div class="anime-rutube-head"><span><b>RUTUBE</b><small>Воспроизведение внутри CheburekWatch</small></span></div>
+          <form data-rutube-anime-form>
+            <label class="vk-search-box">${cwIcon("search",17)}<input data-rutube-anime-query value="${esc(item.title)} серия 1" maxlength="140"></label>
+            <button class="btn btn-primary" type="submit">НАЙТИ СЕРИЮ</button>
+          </form>
+          <div class="anime-rutube-status" data-rutube-anime-status>Можно изменить номер серии или запрос.</div>
+          <div class="anime-rutube-results" data-rutube-anime-results></div>
+        </div>
+        ${sources.length?`<details class="anime-external-sources"><summary>Другие официальные ссылки AniList</summary><div class="anime-source-list">${sources.slice(0,6).map(src=>`<a href="${esc(src.url)}" target="_blank" rel="noopener noreferrer">${esc(src.site||"Источник")}${src.title?` · ${esc(src.title)}`:""} ${cwIcon("arrow",14)}</a>`).join("")}</div></details>`:""}`;
+
+      const rtForm=animeSelected.querySelector("[data-rutube-anime-form]");
+      const rtInput=animeSelected.querySelector("[data-rutube-anime-query]");
+      const rtStatus=animeSelected.querySelector("[data-rutube-anime-status]");
+      const rtResults=animeSelected.querySelector("[data-rutube-anime-results]");
+      rtForm.onsubmit=async ev=>{
+        ev.preventDefault();
+        const q=rtInput.value.trim();
+        if(q.length<2){rtStatus.textContent="Введите хотя бы 2 символа.";return}
+        rtStatus.innerHTML='<span class="button-loader"></span> Ищу на RUTUBE…';
+        rtResults.innerHTML="";
+        try{
+          const data=await api("/api/rutube/search?q="+encodeURIComponent(q),{method:"GET"});
+          const found=Array.isArray(data.items)?data.items:[];
+          rtStatus.textContent=found.length?`Найдено: ${found.length}. Выберите ролик для комнаты.`:"Ничего не нашлось. Попробуйте изменить запрос.";
+          rtResults.innerHTML=found.map((v,idx)=>`<button class="rutube-result" type="button" data-rt-pick="${idx}">
+            <span class="rutube-result-thumb">${v.thumbnail?`<img src="${esc(v.thumbnail)}" alt="" loading="lazy">`:""}<b>${formatVideoDuration(v.duration)}</b></span>
+            <span class="rutube-result-copy"><strong>${esc(v.title)}</strong><small>${esc(v.author||"RUTUBE")} · ${formatViews(v.views)} просмотров</small></span>
+            <span class="rutube-result-play">${cwIcon("play",16)}</span>
+          </button>`).join("");
+          rtResults.querySelectorAll("[data-rt-pick]").forEach(b=>b.onclick=()=>{
+            const v=found[Number(b.dataset.rtPick)];if(!v)return;
+            rtResults.querySelectorAll(".rutube-result").forEach(x=>x.classList.remove("selected"));b.classList.add("selected");
+            rtStatus.textContent="RUTUBE выбран — можно создавать комнату или запускать видео.";
+            onPick?.({title:v.title,player:v.url,thumbnail:v.thumbnail,duration:v.duration,views:v.views,provider:"rutube"});
+          });
+        }catch(err){
+          rtStatus.innerHTML=`<span class="error-inline">${esc(err.message)}</span>`;
+        }
+      };
       onAnime?.(item);
     });
   };
@@ -743,12 +783,13 @@ function playerHtml(media){
   if(!media)return `<div class="emptyvideo"><img src="${archivePhoto(1)}" alt=""><div class="emptyvideo-shade"></div><div class="emptyvideo-copy"><span>КАДР ЕЩЁ НЕ ВЫБРАН</span><b>ДАЖЕ ПУСТОЙ ЭКРАН ЖДЁТ СВОЕГО ХОДА</b><small>Откройте «СМЕНИТЬ КИНО» и дайте комнате источник: YouTube, VK Video или прямой файл.</small></div></div>`;
   if(media.type==="youtube")return `<div class="player-frame yt-stage" id="yt"><div class="player-loading">Подключаем видео…</div></div>`;
   if(media.type==="vk")return `<iframe class="player-frame" id="vkframe" allow="autoplay; encrypted-media; fullscreen; picture-in-picture" allowfullscreen src="${esc(media.url)}"></iframe>`;
+  if(media.type==="rutube")return `<iframe class="player-frame" id="rutubeframe" allow="clipboard-write; autoplay; fullscreen; picture-in-picture" allowfullscreen src="${esc(media.url)}"></iframe>`;
   return `<video class="player-frame" id="htmlvideo" playsinline preload="metadata" controls src="${esc(media.url)}"></video>`;
 }
 async function roomPage(code){
   try{
     const d=await api(`/api/rooms/${encodeURIComponent(code)}`);room=d.room;
-    const people=room.users||[],label=room.media?(room.media.type==="youtube"?"YouTube":room.media.type==="vk"?"VK Video":"Видео"):"Кадр не выбран";
+    const people=room.users||[],label=room.media?(room.media.type==="youtube"?"YouTube":room.media.type==="vk"?"VK Video":room.media.type==="rutube"?"RUTUBE":"Видео"):"Кадр не выбран";
     shell(`<main class="watch-page"><div class="watch-header container"><a class="btn btn-ghost" href="/rooms" data-nav>${cwIcon("back")}<span>Комнаты</span></a><div class="room-title"><div><h3>Комната ${esc(room.code)}</h3><span>${people.length} ${people.length===1?"участник":"участников"} сейчас</span></div></div><div class="participant-stack">${people.slice(0,3).map(u=>avatarHtml(u.nickname)).join("")}${people.length>3?`<span>+${people.length-3}</span>`:""}</div></div>
       <div class="watch-layout container roomlayout ${room.media?"has-media":"needs-media"}"><section class="player-column"><div class="player video-shell" id="videobox">${playerHtml(room.media)}<div class="movie-label"><span>${room.media?"ИСТОЧНИК АКТИВИРОВАН":"КАДР ЕЩЁ НЕ ВЫБРАН"}</span><strong>${esc(label)}</strong></div><div class="player-overlay" id="playerOverlay"><button type="button" class="player-chat-toggle" id="playerChatToggle">${cwIcon("chat")}</button><button type="button" class="player-fullscreen" id="playerFullscreen">${cwIcon("expand")}</button><div class="overlay-chat" id="overlayChat"><div class="overlay-head"><b>РЕПЛИКИ</b><button id="overlayClose">×</button></div><div class="overlay-messages" id="overlayMessages"></div><form id="overlayForm"><input id="overlayInput" maxlength="500" placeholder="Написать сообщение…"><button type="submit">${cwIcon("send",17)}</button></form></div></div></div>
       <div class="player-controls"><button class="btn btn-icon" id="seekBack" aria-label="Назад на 10 секунд">${cwIcon("back")}</button><button class="btn btn-icon" id="playerToggle" aria-label="Воспроизвести">${cwIcon(room.playing?"pause":"play")}</button><span class="player-sync-note">СИНХРОН</span><button class="btn btn-icon" aria-label="Громкость">${cwIcon("sound")}</button><button class="btn btn-icon" id="playerFullscreenBottom" aria-label="На весь экран">${cwIcon("expand")}</button></div>
@@ -756,7 +797,7 @@ async function roomPage(code){
       <div class="movie-selector" id="movieSelector" hidden><div class="selector-head"><div><span class="eyebrow">НОВЫЙ КАДР</span><h3>НАЙТИ ИЛИ ВСТАВИТЬ</h3></div><button class="btn btn-icon" id="movieSelectorClose">${cwIcon("close")}</button></div>
       ${vkSearchPanelHtml("roomVkSearch")}
       <div class="selector-divider"><span>или ссылка вручную</span></div>
-      <p class="selector-note">YouTube, VK Video или прямая ссылка на видео. Изменение синхронизируется для комнаты.</p><form id="mediaform" class="mediaform"><input id="mediaurl" placeholder="YouTube / VK / прямая ссылка" required><button class="btn btn-primary">${cwIcon("play")}<span class="btn-label">ЗАПУСТИТЬ КАДР</span></button></form><div id="mediaerr"></div></div>
+      <p class="selector-note">YouTube, VK Video, RUTUBE или прямая ссылка на видео. Изменение синхронизируется для комнаты.</p><form id="mediaform" class="mediaform"><input id="mediaurl" placeholder="YouTube / VK / RUTUBE / прямая ссылка" required><button class="btn btn-primary">${cwIcon("play")}<span class="btn-label">ЗАПУСТИТЬ КАДР</span></button></form><div id="mediaerr"></div></div>
       </section>
       <aside class="chat-panel"><div class="chat-head"><div><h3>РЕПЛИКИ</h3><span>${people.length} в комнате</span></div><div class="chat-head-actions"><button class="btn btn-ghost" id="invite">ПОЗВАТЬ</button><button class="btn btn-icon" id="peopleToggle" aria-label="Участники">${cwIcon("users")}</button></div></div>
       <div class="participants-popover" id="peoplePopover" hidden><div id="people">${peopleHtml(people)}</div>${room.ownerId===me.id?`<button id="deleteRoom" class="btn btn-ghost danger-text">Удалить комнату</button>`:""}<button id="creatorBtn" class="btn btn-ghost">Создатель</button></div>
@@ -767,7 +808,7 @@ async function roomPage(code){
       try{
         const d=await api(`/api/rooms/${code}/media`,{method:"POST",body:{url:item.player}});
         room=d.room;mountMedia();
-        toast("VK Video выбран");
+        toast(item.provider==="rutube"?"RUTUBE выбран":"VK Video выбран");
         $("#movieSelector").hidden=true;
         $("#movieSelectorToggle").classList.remove("active");
       }catch(err){$("#mediaerr").innerHTML=`<div class="error">${esc(err.message)}</div>`}
@@ -778,7 +819,7 @@ async function roomPage(code){
     $("#movieSelectorClose").onclick=()=>{selector.hidden=true;toggle.classList.remove("active")};
     document.querySelectorAll("[data-room-reaction]").forEach(b=>b.onclick=()=>{const f=document.createElement("span");f.className="floating-reaction";f.textContent=b.dataset.roomReaction;$("#videobox").appendChild(f);setTimeout(()=>f.remove(),1150)});
     $("#playerFullscreenBottom").onclick=()=>$("#playerFullscreen")?.click();
-    $("#playerToggle").onclick=()=>{const playing=!room.playing;room.playing=playing;try{if(player?.playVideo)playing?player.playVideo():player.pauseVideo();else if(vkPlayer?.play)playing?vkPlayer.play():vkPlayer.pause();else if(localVideo)playing?localVideo.play().catch(()=>{}):localVideo.pause()}catch{}sendState(playing,getPosition(),playing?"play":"pause");$("#playerToggle").innerHTML=cwIcon(playing?"pause":"play")};
+    $("#playerToggle").onclick=()=>{const playing=!room.playing;room.playing=playing;try{if(player?.playVideo)playing?player.playVideo():player.pauseVideo();else if(vkPlayer?.play)playing?vkPlayer.play():vkPlayer.pause();else if(rutubeFrame)rutubeCommand(playing?"player:play":"player:pause",{});else if(localVideo)playing?localVideo.play().catch(()=>{}):localVideo.pause()}catch{}sendState(playing,getPosition(),playing?"play":"pause");$("#playerToggle").innerHTML=cwIcon(playing?"pause":"play")};
     $("#seekBack").onclick=()=>{const p=Math.max(0,getPosition()-10);applyPosition(p);sendState(!!room.playing,p,"seek")};
   }catch(e){shell(`<main class="page container"><div class="error">${esc(e.message)}</div><a class="btn btn-secondary" href="/rooms" data-nav>Вернуться к комнатам</a></main>`)}
 }
@@ -907,9 +948,9 @@ function updateMessageReactions(data){
 }
 function syncOverlayMessages(){const src=$("#messages"),dst=$("#overlayMessages");if(!src||!dst)return;dst.innerHTML=src.innerHTML;dst.querySelectorAll(".reaction-pill,.add-reaction").forEach(b=>{if(b.classList.contains("add-reaction"))b.onclick=()=>openReactionMenu(b.dataset.mid,b);else b.onclick=()=>toggleReaction(b.dataset.mid,b.dataset.reaction)});dst.scrollTop=dst.scrollHeight}
 function mountMedia(){
-  player=null;vkPlayer=null;localVideo=null;lastYTPosition=null;lastVKPosition=null;lastAppliedSeq=0;remoteApplyUntil=0;
+  player=null;vkPlayer=null;localVideo=null;rutubeFrame=null;rutubePosition=0;rutubeReady=false;rutubePlaying=false;lastRutubePosition=null;lastYTPosition=null;lastVKPosition=null;lastAppliedSeq=0;remoteApplyUntil=0;
   const box=$("#videobox");if(!box)return;const current=room.media;
-  const label=current?(current.type==="youtube"?"YouTube":current.type==="vk"?"VK Video":"Видео"):"Кадр не выбран";
+  const label=current?(current.type==="youtube"?"YouTube":current.type==="vk"?"VK Video":current.type==="rutube"?"RUTUBE":"Видео"):"Кадр не выбран";
   box.innerHTML=playerHtml(current)+`<div class="movie-label"><span>СЕЙЧАС СМОТРИМ</span><strong>${esc(label)}</strong></div><div class="player-overlay" id="playerOverlay"><button type="button" class="player-chat-toggle" id="playerChatToggle">${cwIcon("chat")}</button><button type="button" class="player-fullscreen" id="playerFullscreen">${cwIcon("expand")}</button><div class="overlay-chat" id="overlayChat"><div class="overlay-head"><b>РЕПЛИКИ</b><button id="overlayClose">×</button></div><div class="overlay-messages" id="overlayMessages"></div><form id="overlayForm"><input id="overlayInput" maxlength="500" placeholder="Написать сообщение…"><button type="submit">${cwIcon("send",17)}</button></form></div></div>`;
   setupPlayerOverlay();
   
@@ -921,6 +962,7 @@ function mountMedia(){
   if(current.type==="vk"){
     loadVKAPI().then(ok=>{if(ok)initVK();else{const host=$("#vkframe")?.parentElement;if(host)host.innerHTML='<div class="player-error"><b>VK Video не загрузился</b><small>Проверьте соединение и попробуйте ещё раз.</small></div>'}});
   }
+  if(current.type==="rutube")initRutube();
   if(current.type==="direct"){
     localVideo=$("#htmlvideo");
     localVideo.addEventListener("play",()=>{if(!suppress&&Date.now()>remoteApplyUntil)sendState(true,localVideo.currentTime,"play")});
@@ -996,6 +1038,61 @@ function initVK(){
   else iframe.addEventListener("load",attach,{once:true});
 }
 
+function rutubeCommand(type,data={}){
+  try{
+    if(!rutubeFrame?.contentWindow)return;
+    rutubeFrame.contentWindow.postMessage(JSON.stringify({type,data}),"*");
+  }catch{}
+}
+function initRutube(){
+  rutubeFrame=$("#rutubeframe");
+  if(!rutubeFrame)return;
+  rutubePosition=Number(room?.position||0);
+  rutubeReady=false;
+  rutubePlaying=false;
+  lastRutubePosition=null;
+
+  const onMessage=e=>{
+    if(!rutubeFrame?.contentWindow || e.source!==rutubeFrame.contentWindow)return;
+    let msg=e.data;
+    try{if(typeof msg==="string")msg=JSON.parse(msg)}catch{return}
+    if(!msg || typeof msg!=="object")return;
+    const type=String(msg.type||"");
+    const data=msg.data||{};
+
+    if(type==="player:ready"){
+      rutubeReady=true;
+      applyRemoteState(room);
+      return;
+    }
+    if(type==="player:currentTime"){
+      const p=Number(data.time);
+      if(Number.isFinite(p)){
+        if(!suppress && Date.now()>remoteApplyUntil && lastRutubePosition!=null && Math.abs(p-lastRutubePosition)>2.5){
+          sendState(rutubePlaying,p,"seek");
+        }
+        rutubePosition=p;
+        lastRutubePosition=p;
+      }
+      return;
+    }
+    if(type==="player:changeState"){
+      const state=String(data.state||"");
+      const nextPlaying=state==="playing";
+      const nextPaused=state==="paused"||state==="stopped";
+      if(nextPlaying||nextPaused){
+        rutubePlaying=nextPlaying;
+        if(!suppress && Date.now()>remoteApplyUntil)sendState(nextPlaying,rutubePosition,nextPlaying?"play":"pause");
+      }
+      return;
+    }
+  };
+
+  window.__cwRutubeMessageHandler && window.removeEventListener("message",window.__cwRutubeMessageHandler);
+  window.__cwRutubeMessageHandler=onMessage;
+  window.addEventListener("message",onMessage);
+}
+
 async function sendState(playing,position,action){
   if(suppress||!room?.code)return;
   const body={playing:Boolean(playing),position:Number(position)||0,action:action|| (playing?"play":"pause")};
@@ -1012,6 +1109,7 @@ function getPosition(){
   try{
     if(player?.getCurrentTime)return Number(player.getCurrentTime());
     if(vkPlayer?.getCurrentTime)return Number(vkPlayer.getCurrentTime());
+    if(rutubeFrame)return Number(rutubePosition||0);
     if(localVideo)return Number(localVideo.currentTime);
   }catch{}
   return Number(room.position||0);
@@ -1020,6 +1118,7 @@ function applyPosition(pos){
   try{
     if(player?.seekTo)player.seekTo(Number(pos),true);
     else if(vkPlayer?.seek)vkPlayer.seek(Number(pos));
+    else if(rutubeFrame){rutubePosition=Number(pos)||0;rutubeCommand("player:setCurrentTime",{time:rutubePosition});}
     else if(localVideo)localVideo.currentTime=Number(pos);
   }catch{}
 }
@@ -1039,6 +1138,7 @@ function applyRemoteState(st){
     if(!Number.isFinite(local)||Math.abs(local-target)>0.65)applyPosition(target);
     if(player?.playVideo) room.playing?player.playVideo():player.pauseVideo();
     else if(vkPlayer?.play) room.playing?vkPlayer.play():vkPlayer.pause();
+    else if(rutubeFrame) rutubeCommand(room.playing?"player:play":"player:pause",{});
     else if(localVideo) room.playing?localVideo.play().catch(()=>{}):localVideo.pause();
   }catch{}
   lastYTPosition=target;
