@@ -13,13 +13,18 @@ const SESSION_DAYS = 30;
 const MAX_MESSAGE = 500;
 const MAX_NICK = 24;
 
-const SITE_MEDIA_TAR = path.join(__dirname, "assets", "cw-media.tar");
+const SITE_MEDIA_TARS = [
+  "cw-media-a.tar",
+  "cw-media-v1.tar",
+  "cw-media-v2.tar",
+  "cw-media-v3.tar",
+  "cw-media-hero.tar"
+].map(name => path.join(__dirname, "assets", name));
 const SITE_MEDIA_DIR = path.join(__dirname, ".runtime-media");
 
 function extractSiteMediaTar(tarFile, outDir) {
   if (!fs.existsSync(tarFile)) return false;
   const data = fs.readFileSync(tarFile);
-  fs.rmSync(outDir, { recursive: true, force: true });
   fs.mkdirSync(outDir, { recursive: true });
   let offset = 0;
   while (offset + 512 <= data.length) {
@@ -52,11 +57,15 @@ function extractSiteMediaTar(tarFile, outDir) {
 }
 
 try {
-  if (extractSiteMediaTar(SITE_MEDIA_TAR, SITE_MEDIA_DIR)) {
-    console.log("Site media bundle ready");
+  fs.rmSync(SITE_MEDIA_DIR, { recursive: true, force: true });
+  fs.mkdirSync(SITE_MEDIA_DIR, { recursive: true });
+  let extracted = 0;
+  for (const tarFile of SITE_MEDIA_TARS) {
+    if (extractSiteMediaTar(tarFile, SITE_MEDIA_DIR)) extracted++;
   }
+  if (extracted) console.log(`Site media bundles ready: ${extracted}`);
 } catch (error) {
-  console.warn("Site media bundle could not be extracted:", error.message);
+  console.warn("Site media bundles could not be extracted:", error.message);
 }
 
 
