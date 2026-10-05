@@ -54,8 +54,8 @@ function cwJoke(){return CW_JOKES[Math.floor(Math.random()*CW_JOKES.length)]}
 
 const SITE_ASSETS={
   heroVideo:"/site-assets/hero/main-intro.mp4",
-  heroDesktop:"/site-assets/hero/main-intro-desktop.mp4",
-  heroDesktopFinal:"/site-assets/hero/main-intro-desktop-final.jpg",
+  heroDesktop:"/site-assets/hero/main-intro-desktop-v2.mp4",
+  heroDesktopFinal:"/site-assets/hero/main-intro-final.jpg",
   heroFinal:"/site-assets/hero/main-intro-final.jpg",
   photos:[
     "/site-assets/photo/unnamed-3.webp",
@@ -205,6 +205,15 @@ function setupMainHeroVideo(){
 
   // First pass is always 0 -> end. Every following pass loops the last ~2 seconds.
   v.addEventListener("ended",replayLoop);
+  let desktopHeroRetry=false;
+  v.addEventListener("error",()=>{
+    if(!desktop || desktopHeroRetry || !v.isConnected)return;
+    desktopHeroRetry=true;
+    const join=SITE_ASSETS.heroDesktop.includes("?")?"&":"?";
+    v.src=SITE_ASSETS.heroDesktop+join+"fresh=36";
+    v.load();
+    setTimeout(()=>{try{v.currentTime=0}catch{};v.play().catch(()=>{})},120);
+  });
 
   let started=false;
   const startFromZero=()=>{
