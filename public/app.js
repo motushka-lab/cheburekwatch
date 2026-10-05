@@ -550,47 +550,52 @@ function bindVkSearch(root,{onPick,onAnime}={}){
       animeResults.querySelectorAll(".anime-result").forEach(x=>x.classList.remove("selected"));btn.classList.add("selected");
       const sources=Array.isArray(item.sources)?item.sources:[];
       animeSelected.hidden=false;
-      animeSelected.innerHTML=`<div class="anime-selected-card">${item.poster?`<img src="${esc(item.poster)}" alt="">`:""}<div><span class="eyebrow">ВЫБРАНО</span><b>${esc(item.title)}</b><small>Каталог найден. Теперь ищем воспроизводимый источник в России.</small></div></div>
-        <div class="anime-rutube-box">
-          <div class="anime-rutube-head"><span><b>RUTUBE</b><small>Воспроизведение внутри CheburekWatch</small></span></div>
-          <form data-rutube-anime-form>
-            <label class="vk-search-box">${cwIcon("search",17)}<input data-rutube-anime-query value="${esc(item.title)} серия 1" maxlength="140"></label>
-            <button class="btn btn-primary" type="submit">НАЙТИ СЕРИЮ</button>
-          </form>
-          <div class="anime-rutube-status" data-rutube-anime-status>Можно изменить номер серии или запрос.</div>
-          <div class="anime-rutube-results" data-rutube-anime-results></div>
-        </div>
-        ${sources.length?`<details class="anime-external-sources"><summary>Другие официальные ссылки AniList</summary><div class="anime-source-list">${sources.slice(0,6).map(src=>`<a href="${esc(src.url)}" target="_blank" rel="noopener noreferrer">${esc(src.site||"Источник")}${src.title?` · ${esc(src.title)}`:""} ${cwIcon("arrow",14)}</a>`).join("")}</div></details>`:""}`;
+      const totalEpisodes=Math.max(1,Number(item.episodes||12));
+      let episodePage=0;
+      const pageSize=12;
+      animeSelected.innerHTML=`<div class="anime-selected-card">${item.poster?`<img src="${esc(item.poster)}" alt="">`:""}<div><span class="eyebrow">ВЫБРАНО</span><b>${esc(item.title)}</b><small>${item.episodes?item.episodes+" серий":"Количество серий уточняется"} · выберите эпизод</small></div></div>
+        <div class="episode-picker">
+          <div class="episode-picker-head"><div><span class="eyebrow">ЭПИЗОД</span><b>КАКУЮ СЕРИЮ СМОТРИМ?</b></div><div class="episode-page-controls"><button class="btn btn-icon" type="button" data-episode-prev>${cwIcon("back",15)}</button><span data-episode-range></span><button class="btn btn-icon" type="button" data-episode-next>${cwIcon("arrow",15)}</button></div></div>
+          <div class="episode-grid" data-episode-grid></div>
+          <div class="episode-status" data-episode-status>Нажмите номер серии — источник подберётся автоматически.</div>
+        </div>`;
 
-      const rtForm=animeSelected.querySelector("[data-rutube-anime-form]");
-      const rtInput=animeSelected.querySelector("[data-rutube-anime-query]");
-      const rtStatus=animeSelected.querySelector("[data-rutube-anime-status]");
-      const rtResults=animeSelected.querySelector("[data-rutube-anime-results]");
-      rtForm.onsubmit=async ev=>{
-        ev.preventDefault();
-        const q=rtInput.value.trim();
-        if(q.length<2){rtStatus.textContent="Введите хотя бы 2 символа.";return}
-        rtStatus.innerHTML='<span class="button-loader"></span> Ищу на RUTUBE…';
-        rtResults.innerHTML="";
+      const epGrid=animeSelected.querySelector("[data-episode-grid]");
+      const epStatus=animeSelected.querySelector("[data-episode-status]");
+      const epRange=animeSelected.querySelector("[data-episode-range]");
+      const prev=animeSelected.querySelector("[data-episode-prev]");
+      const next=animeSelected.querySelector("[data-episode-next]");
+
+      const chooseEpisode=async episode=>{
+        epGrid.querySelectorAll("button").forEach(b=>b.disabled=true);
+        epStatus.innerHTML='<span class="button-loader"></span> Подбираю серию '+episode+'…';
         try{
-          const data=await api("/api/rutube/search?q="+encodeURIComponent(q),{method:"GET"});
-          const found=Array.isArray(data.items)?data.items:[];
-          rtStatus.textContent=found.length?`Найдено: ${found.length}. Выберите ролик для комнаты.`:"Ничего не нашлось. Попробуйте изменить запрос.";
-          rtResults.innerHTML=found.map((v,idx)=>`<button class="rutube-result" type="button" data-rt-pick="${idx}">
-            <span class="rutube-result-thumb">${v.thumbnail?`<img src="${esc(v.thumbnail)}" alt="" loading="lazy">`:""}<b>${formatVideoDuration(v.duration)}</b></span>
-            <span class="rutube-result-copy"><strong>${esc(v.title)}</strong><small>${esc(v.author||"RUTUBE")} · ${formatViews(v.views)} просмотров</small></span>
-            <span class="rutube-result-play">${cwIcon("play",16)}</span>
-          </button>`).join("");
-          rtResults.querySelectorAll("[data-rt-pick]").forEach(b=>b.onclick=()=>{
-            const v=found[Number(b.dataset.rtPick)];if(!v)return;
-            rtResults.querySelectorAll(".rutube-result").forEach(x=>x.classList.remove("selected"));b.classList.add("selected");
-            rtStatus.textContent="RUTUBE выбран — можно создавать комнату или запускать видео.";
-            onPick?.({title:v.title,player:v.url,thumbnail:v.thumbnail,duration:v.duration,views:v.views,provider:"rutube"});
-          });
+          const data=await api("/api/anime/episode-source",{method:"POST",body:{
+            title:item.title,romaji:item.romaji,native:item.native,synonyms:item.synonyms||[],episode
+          }});
+          const src=data.source;
+          if(!src?.url)throw new Error("Источник не найден");
+          epStatus.innerHTML=`${cwIcon("check",14)} Серия ${episode} готова к просмотру.`;
+          onPick?.({title:`${item.title} · серия ${episode}`,player:src.url,thumbnail:src.thumbnail||item.poster,duration:src.duration||0,views:0,provider:"episode"});
         }catch(err){
-          rtStatus.innerHTML=`<span class="error-inline">${esc(err.message)}</span>`;
+          epStatus.innerHTML=`<span class="error-inline">${esc(err.message)}</span>`;
+        }finally{
+          epGrid.querySelectorAll("button").forEach(b=>b.disabled=false);
         }
       };
+
+      const renderEpisodes=()=>{
+        const start=episodePage*pageSize+1;
+        const end=Math.min(totalEpisodes,start+pageSize-1);
+        epRange.textContent=`${start}–${end} / ${totalEpisodes}`;
+        epGrid.innerHTML=Array.from({length:end-start+1},(_,i)=>start+i).map(n=>`<button type="button" data-episode="${n}">${String(n).padStart(2,"0")}</button>`).join("");
+        epGrid.querySelectorAll("[data-episode]").forEach(b=>b.onclick=()=>chooseEpisode(Number(b.dataset.episode)));
+        prev.disabled=episodePage===0;
+        next.disabled=end>=totalEpisodes;
+      };
+      prev.onclick=()=>{if(episodePage>0){episodePage--;renderEpisodes()}};
+      next.onclick=()=>{if((episodePage+1)*pageSize<totalEpisodes){episodePage++;renderEpisodes()}};
+      renderEpisodes();
       onAnime?.(item);
     });
   };
@@ -797,7 +802,7 @@ async function roomPage(code){
       <div class="movie-selector" id="movieSelector" hidden><div class="selector-head"><div><span class="eyebrow">НОВЫЙ КАДР</span><h3>НАЙТИ ИЛИ ВСТАВИТЬ</h3></div><button class="btn btn-icon" id="movieSelectorClose">${cwIcon("close")}</button></div>
       ${vkSearchPanelHtml("roomVkSearch")}
       <div class="selector-divider"><span>или ссылка вручную</span></div>
-      <p class="selector-note">YouTube, VK Video, RUTUBE или прямая ссылка на видео. Изменение синхронизируется для комнаты.</p><form id="mediaform" class="mediaform"><input id="mediaurl" placeholder="YouTube / VK / RUTUBE / прямая ссылка" required><button class="btn btn-primary">${cwIcon("play")}<span class="btn-label">ЗАПУСТИТЬ КАДР</span></button></form><div id="mediaerr"></div></div>
+      <p class="selector-note">YouTube, VK Video или прямая ссылка на видео. Изменение синхронизируется для комнаты.</p><form id="mediaform" class="mediaform"><input id="mediaurl" placeholder="YouTube / VK / прямая ссылка" required><button class="btn btn-primary">${cwIcon("play")}<span class="btn-label">ЗАПУСТИТЬ КАДР</span></button></form><div id="mediaerr"></div></div>
       </section>
       <aside class="chat-panel"><div class="chat-head"><div><h3>РЕПЛИКИ</h3><span>${people.length} в комнате</span></div><div class="chat-head-actions"><button class="btn btn-ghost" id="invite">ПОЗВАТЬ</button><button class="btn btn-icon" id="peopleToggle" aria-label="Участники">${cwIcon("users")}</button></div></div>
       <div class="participants-popover" id="peoplePopover" hidden><div id="people">${peopleHtml(people)}</div>${room.ownerId===me.id?`<button id="deleteRoom" class="btn btn-ghost danger-text">Удалить комнату</button>`:""}<button id="creatorBtn" class="btn btn-ghost">Создатель</button></div>
@@ -808,7 +813,7 @@ async function roomPage(code){
       try{
         const d=await api(`/api/rooms/${code}/media`,{method:"POST",body:{url:item.player}});
         room=d.room;mountMedia();
-        toast(item.provider==="rutube"?"RUTUBE выбран":"VK Video выбран");
+        toast(item.provider==="episode"?"Серия выбрана":"VK Video выбрано");
         $("#movieSelector").hidden=true;
         $("#movieSelectorToggle").classList.remove("active");
       }catch(err){$("#mediaerr").innerHTML=`<div class="error">${esc(err.message)}</div>`}
