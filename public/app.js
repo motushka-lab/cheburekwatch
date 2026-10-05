@@ -51,26 +51,89 @@ const CW_JOKES=[
 ];
 function cwJoke(){return CW_JOKES[Math.floor(Math.random()*CW_JOKES.length)]}
 
-const CW_PHOTOS = [
-  {src:"/media/hero-kitty.jpg", title:"Ночной проход", tag:"АРХИВ · 01", note:"Когда кино уже началось, а вы ещё выбираете, кто будет виноват."},
-  {src:"/media/hero-selfie.jpg", title:"Главный свидетель", tag:"АРХИВ · 02", note:"Лицо человека, который сказал: «я точно не усну»."},
-  {src:"/media/meme-kitty.jpg", title:"Шалом, кино", tag:"АРХИВ · 03", note:"Культурная программа начинается с уверенного шага."},
-  {src:"/media/meme-legs.jpg", title:"За растения", tag:"АРХИВ · 04", note:"Сюжетная линия, которую сценаристы явно недооценили."},
-  {src:"/media/meme-bees.jpg", title:"Пчелиный спин-офф", tag:"АРХИВ · 05", note:"Когда совместный просмотр неожиданно получил бюджет Netflix."},
-  {src:"/media/meme-couple.jpg", title:"Кадр после титров", tag:"АРХИВ · 06", note:"Редкий момент, когда все действительно дошли до финала."},
-  {src:"/media/meme-machine.jpg", title:"Большая премьера", tag:"АРХИВ · 07", note:"Слишком много энергии для одного вечера."},
-  {src:"/media/meme-mafanya.jpg", title:"Сейчас будет сюжет", tag:"АРХИВ · 08", note:"Когда трейлер обещал одно, а жизнь принесла совсем другое."},
-  {src:"/media/meme-ghost.jpg", title:"Бешеный режим", tag:"АРХИВ · 09", note:"После фразы «ещё одну серию и спать»."},
-  {src:"/media/meme-leg.jpg", title:"Мини-камео", tag:"АРХИВ · 10", note:"Появился на две секунды. Украл весь экран."},
-  {src:"/media/meme-bad-company.jpg", title:"Только с малыми", tag:"АРХИВ · 11", note:"Взрослые ушли. Чат официально потерял контроль."},
-  {src:"/media/meme-hug.jpg", title:"Командный просмотр", tag:"АРХИВ · 12", note:"Спойлеры запрещены. Объятия — разрешены."}
-];
-function photoCard(photo, i){
-  return `<article class="cw-photo-card photo-${(i%5)+1}">
-    <div class="cw-photo-media"><img src="${photo.src}" alt="${esc(photo.title)}" loading="lazy" decoding="async"><span class="cw-photo-shine"></span><span class="cw-photo-index">${String(i+1).padStart(2,"0")}</span></div>
-    <div class="cw-photo-meta"><span>${esc(photo.tag)}</span><b>${esc(photo.title)}</b><small>${esc(photo.note)}</small></div>
-  </article>`;
+
+const SITE_ASSETS={
+  heroVideo:"/site-assets/hero/main-intro.mp4",
+  heroFinal:"/site-assets/hero/main-intro-final.jpg",
+  photos:[
+    "/site-assets/photo/unnamed-3.webp",
+    "/site-assets/photo/unnamed-4.webp",
+    "/site-assets/photo/yes.webp",
+    "/site-assets/photo/purple-anime.webp",
+    "/site-assets/photo/jojo-part3.webp",
+    "/site-assets/photo/jojo-memes.webp"
+  ],
+  videos:[
+    "/site-assets/video/video-1.mp4",
+    "/site-assets/video/video-2.mp4",
+    "/site-assets/video/video-3.mp4"
+  ],
+  warning:{
+    banner:"/site-assets/warning/banner.webp",
+    warning2:"/site-assets/warning/warning-2.webp",
+    arthur:"/site-assets/warning/arthur-leywin.webp"
+  }
+};
+function archivePhoto(index=0){
+  return SITE_ASSETS.photos[index%SITE_ASSETS.photos.length];
 }
+function easterPhotoHtml(index,className=""){
+  return `<figure class="archive-easter ${className}" aria-hidden="true"><img src="${archivePhoto(index)}" alt="" loading="lazy"><span>${String(index+1).padStart(2,"0")}</span></figure>`;
+}
+function photoGradientBandHtml(){
+  return `<section class="new-photo-gradient" aria-label="Фотоархив CheburekWatch">
+    <div class="new-photo-gradient-copy"><span>CHEBUREK / ARCHIVE</span><b>кадры из вашей коллекции</b></div>
+    <div class="new-photo-gradient-track">
+      ${SITE_ASSETS.photos.map((src,i)=>`<figure style="--i:${i}"><img src="${src}" alt="" loading="lazy"><i>${String(i+1).padStart(2,"0")}</i></figure>`).join("")}
+    </div>
+  </section>`;
+}
+function ambientVideoStripHtml(){
+  const posters=[SITE_ASSETS.photos[1],SITE_ASSETS.photos[3],SITE_ASSETS.photos[5]];
+  return `<section class="motion-archive container">
+    <div class="section-head motion-head"><div><span class="eyebrow">Движение</span><h2>Три живых кадра</h2></div><p>Видео из архива включаются только когда попадают в кадр.</p></div>
+    <div class="motion-grid">
+      ${SITE_ASSETS.videos.map((src,i)=>`<article class="motion-card motion-card-${i+1}"><video class="ambient-video" src="${src}" poster="${posters[i]}" muted playsinline loop preload="metadata"></video><div><span>0${i+1}</span><b>${["ночной фрагмент","сдвиг света","последний дубль"][i]}</b></div></article>`).join("")}
+    </div>
+  </section>`;
+}
+function setupAmbientVideos(){
+  const videos=[...document.querySelectorAll(".ambient-video")];
+  if(!videos.length)return;
+  const reduced=window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
+  if(reduced){videos.forEach(v=>v.pause());return}
+  if(!("IntersectionObserver" in window)){videos.forEach(v=>v.play().catch(()=>{}));return}
+  const observer=new IntersectionObserver(entries=>{
+    entries.forEach(entry=>{
+      const v=entry.target;
+      if(entry.isIntersecting && entry.intersectionRatio>.25)v.play().catch(()=>{});
+      else v.pause();
+    });
+  },{threshold:[0,.25,.6]});
+  videos.forEach(v=>observer.observe(v));
+}
+function setupMainHeroVideo(){
+  const v=document.querySelector("#mainHeroVideo");
+  if(!v)return;
+  const reduced=window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
+  const key="cw-main-intro-played";
+  if(reduced || sessionStorage.getItem(key)==="1"){v.replaceWith(Object.assign(document.createElement("img"),{className:"hero-image hero-final-frame",src:SITE_ASSETS.heroFinal,alt:""}));return}
+  const start=()=>{
+    if(sessionStorage.getItem(key)==="1")return;
+    sessionStorage.setItem(key,"1");
+    v.muted=true;
+    v.currentTime=0;
+    v.play().catch(()=>sessionStorage.removeItem(key));
+  };
+  v.addEventListener("ended",()=>{
+    v.pause();
+    if(Number.isFinite(v.duration) && v.duration>.05){try{v.currentTime=v.duration-.04}catch{}}
+    v.closest(".hero")?.classList.add("hero-video-ended");
+  },{once:true});
+  if(document.querySelector(".intro"))window.addEventListener("cw:intro-finished",start,{once:true});
+  else start();
+}
+
 
 async function api(url, options={}) {
   const headers={"Content-Type":"application/json", ...(options.headers||{})};
@@ -104,42 +167,16 @@ function prefixLabel(user=me){
 }
 function figmaImages(){
   return {
-    hero:"/media/hero-kitty.jpg",
-    cinema:"/media/meme-machine.jpg",
-    redEye:"/media/meme-kitty.jpg",
-    forest:"/media/meme-bees.jpg",
-    portrait:"/media/meme-couple.jpg",
-    mountain:"/media/meme-ghost.jpg",
-    road:"/media/meme-mafanya.jpg",
-    lake:"/media/meme-hug.jpg",
-    chairs:"/media/meme-couple.jpg"
+    hero:SITE_ASSETS.heroFinal,
+    cinema:archivePhoto(5),
+    redEye:archivePhoto(3),
+    forest:archivePhoto(0),
+    portrait:archivePhoto(4),
+    mountain:archivePhoto(1),
+    road:archivePhoto(2),
+    lake:archivePhoto(5),
+    chairs:SITE_ASSETS.warning.banner
   };
-}
-
-
-const EASTER_PHOTOS=[
-  {src:"/media/hero-kitty.jpg",label:"кадр 01"},
-  {src:"/media/meme-couple.jpg",label:"кадр 02"},
-  {src:"/media/meme-kitty.jpg",label:"кадр 03"},
-  {src:"/media/meme-bees.jpg",label:"кадр 04"},
-  {src:"/media/meme-machine.jpg",label:"кадр 05"},
-  {src:"/media/meme-mafanya.jpg",label:"кадр 06"},
-  {src:"/media/meme-ghost.jpg",label:"кадр 07"},
-  {src:"/media/meme-hug.jpg",label:"кадр 08"},
-  {src:"/media/meme-leg.jpg",label:"кадр 09"},
-  {src:"/media/meme-legs.jpg",label:"кадр 10"}
-];
-function photoEasterHtml(index,className=""){
-  const p=EASTER_PHOTOS[index%EASTER_PHOTOS.length];
-  return `<figure class="photo-easter ${className}" aria-hidden="true"><img src="${p.src}" alt="" loading="lazy"><figcaption>${p.label}</figcaption></figure>`;
-}
-function photoGradientBandHtml(){
-  return `<section class="photo-gradient-band" aria-label="Фотоархив CheburekWatch">
-    <div class="photo-gradient-copy"><span>CHEBUREK ARCHIVE</span><b>свои кадры вместо стоков</b></div>
-    <div class="photo-gradient-track">
-      ${EASTER_PHOTOS.slice(0,6).map((p,i)=>`<figure style="--i:${i}"><img src="${p.src}" alt="" loading="lazy"><span>${String(i+1).padStart(2,"0")}</span></figure>`).join("")}
-    </div>
-  </section>`;
 }
 
 function figmaMovies(){ return []; }
@@ -251,7 +288,7 @@ function openCreateRoomModal(){
   wrap.className="modal-backdrop";
   wrap.innerHTML=`<div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
     <div class="modal-head"><div><span class="eyebrow">Новый сеанс</span><h2 class="modal-title" id="modal-title">Создать комнату</h2></div><button class="btn btn-icon" data-close-modal aria-label="Закрыть">${cwIcon("close")}</button></div>
-    <div class="modal-poster"><img src="${i.road}" alt=""><div><span>Фильм можно выбрать сейчас или позже</span><h3>Что будем смотреть?</h3><button class="btn btn-paper" type="button" id="pickMovie">${cwIcon("search")}Выбрать кино</button></div></div>
+    <div class="modal-poster"><img src="${archivePhoto(2)}" alt=""><div><span>Фильм можно выбрать сейчас или позже</span><h3>Что будем смотреть?</h3><button class="btn btn-paper" type="button" id="pickMovie">${cwIcon("search")}Выбрать кино</button></div></div>
     <label class="field"><span>Название комнаты</span><input id="newRoomName" placeholder="Название вашей комнаты" maxlength="60"></label>
     <div class="privacy-options">
       <button class="selected" type="button" data-privacy="private">${cwIcon("lock")}<span><strong>Только для своих</strong>Вход по приглашению или коду</span><i>${cwIcon("check",15)}</i></button>
@@ -292,30 +329,37 @@ function openAccountModal(){
 }
 
 async function landingPage(){
-  const i=figmaImages();
   let realRooms=[];
   if(me){try{realRooms=(await api("/api/my-rooms")).rooms||[]}catch{}}
   const roomSection=me
     ? `<section class="section container room-preview-section"><div class="section-head"><div><span class="eyebrow">Ваши комнаты</span><h2>Продолжить просмотр</h2></div><a class="btn btn-ghost" href="/rooms" data-nav>Все комнаты ${cwIcon("arrow")}</a></div>
-       <div class="rooms-grid featured">${realRooms.length?realRooms.slice(0,4).map((r,n)=>roomCardHtml(r,n)).join(""):emptyStateHtml()}</div>${photoEasterHtml(6,"easter-room-preview")}</section>`
+       <div class="rooms-grid featured">${realRooms.length?realRooms.slice(0,4).map((r,n)=>roomCardHtml(r,n)).join(""):emptyStateHtml()}</div>${easterPhotoHtml(4,"archive-room-peek")}</section>`
     : `<section class="section container room-preview-section"><div class="section-head"><div><span class="eyebrow">Совместный просмотр</span><h2>Здесь будут ваши комнаты</h2></div></div>
-       <div class="empty-state"><div class="empty-projector"><i></i><span></span></div><span class="eyebrow">Пока пусто</span><h3>Никаких выдуманных трансляций</h3><p>После входа здесь появятся только настоящие комнаты и реальные участники.</p><a class="btn btn-primary" href="/login" data-nav>Войти</a></div>${photoEasterHtml(6,"easter-room-preview")}</section>`;
+       <div class="empty-state"><div class="empty-projector"><i></i><span></span></div><span class="eyebrow">Пока пусто</span><h3>Первый сеанс ещё впереди</h3><p>Войдите в аккаунт, создайте комнату и зовите друзей по коду.</p><a class="btn btn-primary" href="/login" data-nav>Войти</a></div>${easterPhotoHtml(4,"archive-room-peek")}</section>`;
+
+  const heroMedia=sessionStorage.getItem("cw-main-intro-played")==="1"
+    ? `<img class="hero-image hero-final-frame" src="${SITE_ASSETS.heroFinal}" alt="">`
+    : `<video id="mainHeroVideo" class="hero-image hero-main-video" src="${SITE_ASSETS.heroVideo}" poster="${SITE_ASSETS.heroFinal}" muted playsinline preload="auto"></video>`;
+
   shell(`<main>
-    <section class="hero local-photo-hero"><img class="hero-image" src="${i.hero}" alt=""><div class="hero-overlay"></div>
-      <div class="hero-photo-stack" aria-hidden="true"><span style="background-image:url('/media/meme-bees.jpg')"></span><span style="background-image:url('/media/meme-machine.jpg')"></span><span style="background-image:url('/media/meme-couple.jpg')"></span></div>
+    <section class="hero archive-hero">${heroMedia}<div class="hero-overlay"></div>
+      <div class="hero-archive-stack" aria-hidden="true"><span style="background-image:url('${archivePhoto(3)}')"></span><span style="background-image:url('${archivePhoto(1)}')"></span></div>
       <div class="container hero-content reveal"><span class="hero-kicker"><i></i> Вечер начинается здесь</span><h1>Кино ближе,<br><em>когда вы вместе</em></h1>
       <p>Смотрите любимые фильмы синхронно. Обсуждайте, смейтесь и проживайте каждую сцену — даже если между вами тысячи километров.</p>
       <div class="hero-actions"><button class="btn btn-primary" data-create>${cwIcon("play")}<span class="btn-label">Создать комнату</span></button><a class="btn btn-secondary" href="${me?"/rooms":"/login"}" data-nav>Войти по коду ${cwIcon("arrow")}</a></div></div>
-      ${photoEasterHtml(2,"easter-hero")}
+      ${easterPhotoHtml(0,"archive-hero-easter")}
     </section>
     ${photoGradientBandHtml()}
     ${roomSection}
-    <section class="manifesto"><div class="container manifesto-grid"><div class="manifesto-image"><img src="${i.cinema}" alt=""><span>ОДИН ЭКРАН<br>НА ВСЕХ</span>${photoEasterHtml(8,"easter-manifesto")}</div>
+    ${ambientVideoStripHtml()}
+    <section class="manifesto archive-manifesto"><div class="container manifesto-grid"><div class="manifesto-image"><img src="${archivePhoto(5)}" alt=""><span>ОДИН ЭКРАН<br>НА ВСЕХ</span>${easterPhotoHtml(2,"archive-manifesto-easter")}</div>
       <div class="manifesto-copy"><span class="eyebrow">Без расстояний</span><h2>Как в кинотеатре.<br>Только у каждого дома.</h2>
       <div class="feature-list"><div><b>01</b><span><strong>Кадр в кадр</strong>Пауза, перемотка и продолжение синхронны для всех.</span></div><div><b>02</b><span><strong>Живой разговор</strong>Чат и быстрые реакции рядом, но не мешают просмотру.</span></div><div><b>03</b><span><strong>Только свои</strong>Входите в комнату по коду и смотрите со своей компанией.</span></div></div></div></div></section>
-    <section class="club-notes container"><div class="club-note-copy"><span class="eyebrow">Ваш профиль</span><h2>Смотрите вместе.<br>Прокачивайте профиль.</h2><p>Уровень, минуты просмотра и достижения считаются по реальной активности в комнатах.</p></div>
-      <div class="club-collage"><img src="${i.redEye}" alt=""><img src="${i.forest}" alt=""><img src="${i.road}" alt=""><span class="ticket">CHEBUREK<br><small>WATCH PARTY</small></span>${photoEasterHtml(9,"easter-club")}</div></section>
+    <section class="club-notes container archive-notes"><div class="club-note-copy"><span class="eyebrow">Ваш профиль</span><h2>Смотрите вместе.<br>Прокачивайте профиль.</h2><p>Уровень, минуты просмотра и достижения считаются по реальной активности в комнатах.</p></div>
+      <div class="club-collage archive-collage"><img src="${archivePhoto(0)}" alt=""><img src="${archivePhoto(4)}" alt=""><img src="${archivePhoto(2)}" alt=""><span class="ticket">CHEBUREK<br><small>WATCH PARTY</small></span>${easterPhotoHtml(5,"archive-note-easter")}</div></section>
   </main>`);
+  setupMainHeroVideo();
+  setupAmbientVideos();
   document.querySelectorAll("[data-open]").forEach(b=>b.addEventListener("click",async()=>{b.disabled=true;try{await api(`/api/rooms/${b.dataset.open}/join`,{method:"POST"});navigate("/room/"+b.dataset.open)}catch(e){toast(e.message);b.disabled=false}}));
 }
 
@@ -332,8 +376,7 @@ function shell(content,opts={}){
 
 function mountCinemaIntro(){}
 function authPage(mode){
-  const i=figmaImages();
-  shell(`<main class="auth-page"><div class="auth-visual"><img src="${i.redEye}" alt="Кинематографичный портрет в красном свете"><div class="auth-quote"><span>СЕАНС № 1948</span><h2>Истории становятся<br>настоящими, когда<br>ими делятся.</h2></div>${photoEasterHtml(1,"easter-auth")}</div>
+  shell(`<main class="auth-page"><div class="auth-visual archive-auth-visual"><img src="${archivePhoto(3)}" alt=""><div class="auth-visual-film"><video class="ambient-video" src="${SITE_ASSETS.videos[1]}" poster="${archivePhoto(3)}" muted playsinline loop preload="metadata"></video></div><div class="auth-quote"><span>СЕАНС / CHEBUREK</span><h2>Истории становятся<br>настоящими, когда<br>ими делятся.</h2></div>${easterPhotoHtml(1,"archive-auth-easter")}</div>
     <div class="auth-form-wrap"><div class="auth-mobile-logo">${logoHtml()}</div><a class="btn btn-ghost auth-back" href="/" data-nav>${cwIcon("back")}На главную</a>
       <form class="auth-form" id="authform"><span class="eyebrow">${mode==="login"?"С возвращением":"Добро пожаловать"}</span><h1>${mode==="login"?"Продолжим смотреть?":"Займите место"}</h1><p>${mode==="login"?"Войдите в аккаунт или используйте код комнаты.":"Создайте профиль для совместных кинопросмотров."}</p>
       <div class="auth-tabs"><a class="btn btn-ghost ${mode==="login"?"active":""}" href="/login" data-nav>Вход</a><a class="btn btn-ghost ${mode==="register"?"active":""}" href="/register" data-nav>Регистрация</a></div>
@@ -342,37 +385,44 @@ function authPage(mode){
       <div id="formerr"></div><button class="btn btn-primary full" type="submit"><span class="btn-label">${mode==="login"?"Войти":"Создать аккаунт"}</span>${cwIcon("arrow")}</button>
       <div class="or"><span>или</span></div><label class="field"><span>Код комнаты</span><input id="authRoomCode" placeholder="Например: KINO24" maxlength="6"></label><button class="btn btn-secondary full" id="authJoin" type="button">Войти по коду</button><div id="joinerr"></div>
       </form></div></main>`,{header:false,bottom:false});
+  setupAmbientVideos();
   const q=new URLSearchParams(location.search).get("code");if(q)$("#authRoomCode").value=q.toUpperCase();
   $("#authform").onsubmit=async e=>{e.preventDefault();try{const d=await api(mode==="login"?"/api/login":"/api/register",{method:"POST",body:{nickname:$("#nick").value,password:$("#pass").value}});me=d.user;const code=$("#authRoomCode").value.trim();if(code)await joinByCode(code,$("#joinerr"));else navigate("/rooms")}catch(err){$("#formerr").innerHTML=`<div class="error">${esc(err.message)}</div>`}};
   $("#authJoin").onclick=()=>{if(me)joinByCode($("#authRoomCode").value,$("#joinerr"));else $("#joinerr").innerHTML='<div class="error">Сначала войдите или создайте аккаунт, затем используйте код комнаты.</div>'};
 }
+
 async function roomsPage(){
   const d=await api("/api/my-rooms");
-  shell(`<main class="page container"><div class="browse-top reveal"><div><span class="eyebrow">Ваши комнаты</span><h1>Выберите комнату</h1><p>Здесь отображаются только реальные комнаты вашего аккаунта.</p></div><button class="btn btn-primary" data-create>${cwIcon("plus")}<span class="btn-label">Новая комната</span></button></div>
+  shell(`<main class="page container rooms-archive-page"><div class="browse-top reveal"><div><span class="eyebrow">Ваши комнаты</span><h1>Выберите комнату</h1><p>Здесь отображаются только реальные комнаты вашего аккаунта.</p></div><button class="btn btn-primary" data-create>${cwIcon("plus")}<span class="btn-label">Новая комната</span></button></div>
     <div class="filter-row real-room-search"><label class="search-box">${cwIcon("search")}<input id="roomSearch" placeholder="Найти комнату или ввести код"></label></div>
-    <div id="roomsGrid" class="rooms-grid browse-grid">${d.rooms.length?d.rooms.map((r,n)=>roomCardHtml(r,n)).join(""):emptyStateHtml()}</div><div id="filterEmpty" hidden>${emptyStateHtml()}</div><aside class="rooms-photo-easter">${photoEasterHtml(3,"peek-a")}${photoEasterHtml(4,"peek-b")}${photoEasterHtml(5,"peek-c")}</aside>
+    <div id="roomsGrid" class="rooms-grid browse-grid">${d.rooms.length?d.rooms.map((r,n)=>roomCardHtml(r,n)).join(""):emptyStateHtml()}</div>
+    <aside class="rooms-archive-easters">${easterPhotoHtml(1,"rooms-peek-a")}${easterPhotoHtml(3,"rooms-peek-b")}${easterPhotoHtml(5,"rooms-peek-c")}</aside>
   </main>`);
   document.querySelectorAll("[data-open]").forEach(b=>b.addEventListener("click",async()=>{b.disabled=true;try{await api(`/api/rooms/${b.dataset.open}/join`,{method:"POST"});navigate("/room/"+b.dataset.open)}catch(e){toast(e.message);b.disabled=false}}));
   const search=$("#roomSearch");
   search.addEventListener("input",()=>{const q=search.value.trim().toLowerCase();document.querySelectorAll(".room-card[data-search]").forEach(c=>c.hidden=q&&!c.dataset.search.includes(q))});
   search.addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();const v=search.value.trim().toUpperCase();if(/^[A-Z0-9]{6}$/.test(v))joinByCode(v)}});
-  document.querySelectorAll("[data-filter]").forEach(b=>b.addEventListener("click",()=>{document.querySelectorAll("[data-filter]").forEach(x=>x.classList.remove("active"));b.classList.add("active");const empty=b.dataset.filter==="friends";$("#roomsGrid").hidden=empty;$("#filterEmpty").hidden=!empty}));
 }
+
 async function createRoom(){openCreateRoomModal()}
 async function profilePage(){
   const d=await api("/api/profile");me=d.user;
-  const i=figmaImages();
-  const next=me.minutesToNext||20,hours=Math.floor((me.watchMinutes||0)/60),mins=(me.watchMinutes||0)%60,unlocked=d.user.achievements.length,total=d.user.availableAchievements.length;
+  const next=me.minutesToNext||20,hours=Math.floor((me.watchMinutes||0)/60),mins=(me.watchMinutes||0)%60,unlocked=d.user.achievements.length;
   const firstAchievements=d.user.availableAchievements.slice(0,3);
-  shell(`<main class="profile-page"><section class="profile-hero"><img src="${i.chairs}" alt=""><div class="profile-shade"></div><div class="container profile-info">${avatarHtml(me.nickname,"lg")}<div class="profile-name"><span class="eyebrow">Профиль зрителя</span><h1>${esc(me.nickname)}</h1><p>@${esc(me.nickname.toLowerCase().replace(/\s+/g,""))} · ${esc(me.secretPrefix||me.prefix||"зритель")}</p></div><button class="btn btn-secondary" id="profileSettings">Настроить профиль</button></div></section>
-    <div class="container profile-content"><section class="level-card"><div class="level-number">${String(me.level).padStart(2,"0")}</div><div class="level-copy"><span>УРОВЕНЬ</span><h3>${esc(me.secretPrefix||me.prefix||"Зритель")}</h3><div class="progress"><i style="width:${Math.max(0,Math.min(100,Number(me.progress||0)))}%"></i></div><p>${next} мин. до следующего уровня</p></div><div class="stats"><div><strong>${me.watchMinutes||0}</strong><span>Минут</span></div><div><strong>${hours}ч ${mins}м</strong><span>Просмотра</span></div><div><strong>${unlocked}</strong><span>Наград</span></div></div></section>
-    <section class="profile-section"><div class="section-head"><div><span class="eyebrow">Коллекция</span><h2>Знаки отличия</h2></div></div><div class="achievements">${firstAchievements.length?firstAchievements.map((a,n)=>`<div><b>${["01","02","03"][n]||"•"}</b><span><strong>${esc(a.title)}</strong>${esc(a.desc)}</span></div>`).join(""):`<div><b>○</b><span><strong>Пока пусто</strong>Достижения появятся после реальных просмотров</span></div>`}</div></section><aside class="profile-photo-easters">${photoEasterHtml(0,"profile-peek-a")}${photoEasterHtml(5,"profile-peek-b")}${photoEasterHtml(7,"profile-peek-c")}</aside>
-    <section class="profile-section profile-real-note"><div class="empty-state"><div class="empty-projector"><i></i><span></span></div><span class="eyebrow">История просмотров</span><h3>Здесь появятся только реальные данные</h3><p>Сейчас сервер не хранит отдельную историю фильмов и избранное, поэтому мы не показываем выдуманные фильмы, комнаты или проценты просмотра.</p></div></section>
+  shell(`<main class="profile-page warning-profile"><section class="profile-hero"><img src="${SITE_ASSETS.warning.banner}" alt=""><div class="profile-shade"></div><div class="warning-stamp">PROFILE / WATCHER</div><div class="container profile-info">${avatarHtml(me.nickname,"lg")}<div class="profile-name"><span class="eyebrow">Профиль зрителя</span><h1>${esc(me.nickname)}</h1><p>@${esc(me.nickname.toLowerCase().replace(/\s+/g,""))} · ${esc(me.secretPrefix||me.prefix||"зритель")}</p></div><button class="btn btn-secondary" id="profileSettings">Настроить профиль</button></div></section>
+    <div class="container profile-content"><section class="level-card warning-level-card"><div class="level-number">${String(me.level).padStart(2,"0")}</div><div class="level-copy"><span>УРОВЕНЬ</span><h3>${esc(me.secretPrefix||me.prefix||"Зритель")}</h3><div class="progress"><i style="width:${Math.max(0,Math.min(100,Number(me.progress||0)))}%"></i></div><p>${next} мин. до следующего уровня</p></div><div class="stats"><div><strong>${me.watchMinutes||0}</strong><span>Минут</span></div><div><strong>${hours}ч ${mins}м</strong><span>Просмотра</span></div><div><strong>${unlocked}</strong><span>Наград</span></div></div></section>
+
+    <section class="profile-warning-gallery"><article class="warning-art warning-art-main"><img src="${SITE_ASSETS.warning.warning2}" alt=""><div><span>WARNING / 01</span><b>Личный режим просмотра</b><small>Профиль получает цвет и характер из вашего архива, а не из случайного стока.</small></div></article><article class="warning-art"><img src="${SITE_ASSETS.warning.arthur}" alt=""><div><span>WARNING / 02</span><b>Редкий кадр</b><small>Спрятан как часть профиля — заметен, но не перетягивает весь экран.</small></div></article></section>
+
+    <section class="profile-section"><div class="section-head"><div><span class="eyebrow">Коллекция</span><h2>Знаки отличия</h2></div></div><div class="achievements">${firstAchievements.length?firstAchievements.map((a,n)=>`<div><b>${["01","02","03"][n]||"•"}</b><span><strong>${esc(a.title)}</strong>${esc(a.desc)}</span></div>`).join(""):`<div><b>○</b><span><strong>Пока пусто</strong>Достижения появятся после реальных просмотров</span></div>`}</div></section>
+    <aside class="profile-archive-easters">${easterPhotoHtml(0,"profile-peek-a")}${easterPhotoHtml(4,"profile-peek-b")}</aside>
+    <section class="profile-section profile-real-note"><div class="empty-state"><div class="empty-projector"><i></i><span></span></div><span class="eyebrow">История просмотров</span><h3>Здесь появятся только реальные данные</h3><p>Сервер пока не хранит отдельную историю фильмов и избранное, поэтому здесь нет выдуманных просмотров.</p></div></section>
     </div></main>`);
   $("#profileSettings").onclick=openAccountModal;
 }
+
 function playerHtml(media){
-  if(!media)return `<div class="emptyvideo"><img src="${figmaImages().mountain}" alt=""><div class="emptyvideo-shade"></div><div class="emptyvideo-copy"><span>КИНО НЕ ВЫБРАНО</span><b>Экран ждёт фильм</b><small>Нажмите «Сменить кино» и вставьте ссылку YouTube, VK Video или прямой файл.</small></div></div>`;
+  if(!media)return `<div class="emptyvideo"><img src="${archivePhoto(1)}" alt=""><div class="emptyvideo-shade"></div><div class="emptyvideo-copy"><span>КИНО НЕ ВЫБРАНО</span><b>Экран ждёт фильм</b><small>Нажмите «Сменить кино» и вставьте ссылку YouTube, VK Video или прямой файл.</small></div></div>`;
   if(media.type==="youtube")return `<div class="player-frame yt-stage" id="yt"><div class="player-loading">Подключаем видео…</div></div>`;
   if(media.type==="vk")return `<iframe class="player-frame" id="vkframe" allow="autoplay; encrypted-media; fullscreen; picture-in-picture" allowfullscreen src="${esc(media.url)}"></iframe>`;
   return `<video class="player-frame" id="htmlvideo" playsinline preload="metadata" controls src="${esc(media.url)}"></video>`;
@@ -689,7 +739,7 @@ function initCinematicIntro(){
   document.body.appendChild(intro);
   const hold=reduced?100:(returning?850:2100);
   setTimeout(()=>intro.classList.add("is-leaving"),hold);
-  setTimeout(()=>{intro.remove();sessionStorage.setItem("cw-seen-intro","1")},hold+(reduced?30:650));
+  setTimeout(()=>{intro.remove();sessionStorage.setItem("cw-seen-intro","1");window.dispatchEvent(new CustomEvent("cw:intro-finished"))},hold+(reduced?30:650));
 }
 
 (async()=>{initCinematicIntro();try{me=(await api("/api/me")).user}catch{};await render()})();
