@@ -12,6 +12,8 @@ const DB_FILE = path.join(DATA_DIR, "db.json");
 const SESSION_DAYS = 30;
 const MAX_MESSAGE = 500;
 const MAX_NICK = 24;
+const VK_API_TOKEN = String(process.env.VK_ACCESS_TOKEN || process.env.VK_USER_TOKEN || "").trim();
+const VK_API_VERSION = String(process.env.VK_API_VERSION || "5.199").trim();
 
 const SITE_MEDIA_TARS = [
   "cw-media-a.tar",
@@ -242,8 +244,9 @@ function validateVideo(raw) {
       const oid = u.searchParams.get("oid");
       const vid = u.searchParams.get("id");
       if (!oid || !vid) throw new Error("Некорректная VK video_ext.php ссылка");
-      const embed = new URL("https://vkvideo.ru/video_ext.php");
-      embed.searchParams.set("oid", oid); embed.searchParams.set("id", vid);
+      const embed = new URL(u.href);
+      embed.protocol = "https:";
+      embed.hostname = "vkvideo.ru";
       embed.searchParams.set("hd", u.searchParams.get("hd") || "2");
       embed.searchParams.set("js_api", "1");
       return { type: "vk", url: embed.href, sourceUrl: u.href, oid, id: vid };
@@ -322,6 +325,71 @@ app.get("/api/me", (req, res) => {
   res.json({ user: user ? publicUser(user) : null });
 });
 
+// VK Video search. VK's official video.search method requires a user access token.
+app.get("/api/vk/search", requireAuth, async (req, res) => {
+  const q = String(req.query.q || "").trim().slice(0, 120);
+  if (q.length < 2) return res.status(400).json({ error: "Введите хотя бы 2 символа" });
+  if (!VK_API_TOKEN) {
+    return res.status(503).json({
+      error: "Поиск VK Video ещё не подключён: добавьте VK_ACCESS_TOKEN в переменные Render.",
+      code: "VK_SEARCH_NOT_CONFIGURED"
+    });
+  }
+
+  const params = new URLSearchParams({
+    q,
+    sort: "2",
+    adult: "0",
+    filters: "vk",
+    count: "12",
+    extended: "0",
+    access_token: VK_API_TOKEN,
+    v: VK_API_VERSION
+  });
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 9000);
+  try {
+    const response = await fetch("https://api.vk.com/method/video.search?" + params.toString(), {
+      signal: controller.signal,
+      headers: { "Accept": "application/json" }
+    });
+    const data = await response.json();
+    if (!response.ok) return res.status(502).json({ error: "VK Video временно недоступен" });
+    if (data.error) {
+      const msg = String(data.error.error_msg || "VK API вернул ошибку");
+      return res.status(502).json({ error: msg, code: "VK_API_ERROR" });
+    }
+
+    const rawItems = Array.isArray(data.response?.items) ? data.response.items : [];
+    const items = rawItems
+      .filter(v => v && v.player && !v.processing && !v.converting && !v.content_restricted)
+      .map(v => {
+        const images = Array.isArray(v.image) ? [...v.image] : [];
+        images.sort((a,b) => Number(b.width || 0) - Number(a.width || 0));
+        const thumb = images.find(x => /^https?:\/\//i.test(String(x?.url || "")))?.url || "";
+        return {
+          id: Number(v.id),
+          ownerId: Number(v.owner_id),
+          title: String(v.title || "Без названия").slice(0, 180),
+          duration: Math.max(0, Number(v.duration || 0)),
+          views: Math.max(0, Number(v.views || 0)),
+          thumbnail: thumb,
+          player: String(v.player),
+          type: String(v.type || "video")
+        };
+      })
+      .slice(0, 12);
+
+    res.json({ query: q, count: items.length, items });
+  } catch (error) {
+    const message = error?.name === "AbortError" ? "VK Video отвечает слишком долго" : "Не удалось выполнить поиск VK Video";
+    res.status(502).json({ error: message });
+  } finally {
+    clearTimeout(timer);
+  }
+});
+
 // Rooms
 app.get("/api/my-rooms", requireAuth, (req, res) => {
   const rooms = db.rooms.filter(r => r.members.includes(req.user.id)).map(r => ({
@@ -331,8 +399,14 @@ app.get("/api/my-rooms", requireAuth, (req, res) => {
   res.json({ rooms });
 });
 app.post("/api/rooms", requireAuth, (req, res) => {
+  let initialMedia = null;
+  const initialMediaUrl = String(req.body?.mediaUrl || "").trim();
+  if (initialMediaUrl) {
+    try { initialMedia = validateVideo(initialMediaUrl); }
+    catch(e) { return res.status(400).json({ error: e.message }); }
+  }
   const room = {
-    code: roomCode(), ownerId: req.user.id, members: [req.user.id], media: null,
+    code: roomCode(), ownerId: req.user.id, members: [req.user.id], media: initialMedia,
     playing: false, position: 0, updatedAt: Date.now(), playback: {playing:false, position:0, updatedAt:Date.now(), by:req.user.id, seq:0}, createdAt: new Date().toISOString()
   };
   db.rooms.push(room);
