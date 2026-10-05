@@ -1992,3 +1992,126 @@ body.manga-mode .watch-page #htmlvideo,
 body.manga-mode .watch-page iframe{
   filter:grayscale(1) contrast(1.12)!important;
 }
+
+/* v48 — Manga Mode stabilization: keep layout geometry, only restyle */
+body.manga-mode .room-card,
+body.manga-mode .motion-card,
+body.manga-mode .archive-slide,
+body.manga-mode .section-head h2,
+body.manga-mode .browse-top h1,
+body.manga-mode .profile-name h1,
+body.manga-mode .eyebrow,
+body.manga-mode .hero-kicker,
+body.manga-mode .btn,
+body.manga-mode .btn:hover{
+  transform:none!important;
+}
+body.manga-mode .archive-hero:after,
+body.manga-mode .archive-hero .hero-content>p:after,
+body.manga-mode .header-inner:after{
+  display:none!important;
+}
+body.manga-mode .archive-easter,
+body.manga-mode .photo-easter,
+body.manga-mode .rooms-archive-easters,
+body.manga-mode .hero-photo-stack,
+body.manga-mode .hero-archive-stack{
+  display:none!important;
+}
+body.manga-mode .archive-hero .hero-content{
+  max-width:min(680px,92vw)!important;
+  width:auto!important;
+}
+body.manga-mode .archive-hero h1{
+  display:block!important;
+  width:auto!important;
+  max-width:100%!important;
+  padding:10px 14px!important;
+  background:rgba(255,255,255,.94)!important;
+  color:#050505!important;
+  border:4px solid #050505!important;
+  box-shadow:6px 6px 0 #050505!important;
+  line-height:1!important;
+  box-decoration-break:initial!important;
+  -webkit-box-decoration-break:initial!important;
+}
+body.manga-mode .archive-hero h1 em{color:#050505!important}
+body.manga-mode .archive-hero .hero-content>p{
+  width:auto!important;max-width:520px!important;margin-top:18px!important;
+  padding:12px 14px!important;background:#fff!important;color:#050505!important;
+  border:3px solid #050505!important;border-radius:0!important;
+  box-shadow:4px 4px 0 #050505!important;font-weight:700!important;
+}
+body.manga-mode .section-head h2,
+body.manga-mode .browse-top h1,
+body.manga-mode .profile-name h1{
+  display:block!important;width:auto!important;max-width:100%!important;
+  padding:0!important;background:transparent!important;border:0!important;box-shadow:none!important;
+}
+body.manga-mode .eyebrow{
+  display:inline-flex!important;width:max-content!important;max-width:100%!important;
+  padding:3px 7px!important;background:#050505!important;color:#fff!important;border:2px solid #050505!important;
+}
+body.manga-mode .manifesto-copy{
+  padding:18px!important;box-shadow:5px 5px 0 #050505!important;
+}
+body.manga-mode .rooms-grid,
+body.manga-mode .archive-carousel-track{
+  align-items:stretch!important;
+}
+body.manga-mode .room-card .poster,
+body.manga-mode .motion-card,
+body.manga-mode .archive-slide{
+  height:auto;
+}
+body.manga-mode .archive-hero .hero-image,
+body.manga-mode .archive-slide img,
+body.manga-mode .motion-card video,
+body.manga-mode .room-card .poster>img,
+body.manga-mode .profile-hero>img,
+body.manga-mode .warning-art img,
+body.manga-mode .auth-visual>img,
+body.manga-mode .auth-visual-film video,
+body.manga-mode .modal-poster img,
+body.manga-mode .anime-result-poster img,
+body.manga-mode .anime-selected-card>img{
+  filter:grayscale(1) contrast(1.28) brightness(1.02)!important;
+}
+body.manga-mode p,
+body.manga-mode small,
+body.manga-mode span,
+body.manga-mode strong,
+body.manga-mode b{
+  word-break:normal;
+  overflow-wrap:break-word;
+}
+body.manga-mode .modal,
+body.manga-mode .movie-selector,
+body.manga-mode .media-discovery{
+  max-width:100%!important;
+}
+body.manga-mode .anime-search-results,
+body.manga-mode .anime-rutube-results{
+  overflow-x:hidden!important;
+}
+body.manga-mode .watch-page .player-frame,
+body.manga-mode .watch-page #htmlvideo,
+body.manga-mode .watch-page iframe{
+  filter:grayscale(1)!important;
+}
+
+/* Bilibili anime player */
+.bilibili-frame{width:100%;height:100%;border:0;background:#000}
+.episode-region-note{
+  margin-top:8px;padding:8px 10px;border:1px solid var(--line,#30302b);
+  color:var(--muted,#96958b);font-size:8px;line-height:1.45;
+}
+.player-controls button:disabled{opacity:.38;cursor:not-allowed}
+body.manga-mode .episode-region-note{
+  background:#fff!important;color:#333!important;border:2px solid #050505!important;
+}
+@media(max-width:700px){
+  body.manga-mode .archive-hero .hero-content{max-width:92vw!important}
+  body.manga-mode .archive-hero h1{padding:8px 10px!important;border-width:3px!important;box-shadow:4px 4px 0 #050505!important}
+  body.manga-mode .archive-hero .hero-content>p{max-width:100%!important;margin-top:13px!important;box-shadow:3px 3px 0 #050505!important}
+}
