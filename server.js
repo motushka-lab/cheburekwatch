@@ -21,6 +21,20 @@ const SITE_MEDIA_TARS = [
   "cw-media-hero.tar"
 ].map(name => path.join(__dirname, "assets", name));
 const SITE_MEDIA_DIR = path.join(__dirname, ".runtime-media");
+const USER_HERO_PARTS_DIR = path.join(__dirname, "assets", "user-hero");
+
+function hydrateBase64Parts(partsDir, prefix, dest) {
+  if (!fs.existsSync(partsDir)) return false;
+  const parts = fs.readdirSync(partsDir)
+    .filter(name => name.startsWith(prefix))
+    .sort();
+  if (!parts.length) return false;
+  const encoded = parts.map(name => fs.readFileSync(path.join(partsDir, name), "utf8")).join("").replace(/\s+/g, "");
+  fs.mkdirSync(path.dirname(dest), { recursive: true });
+  fs.writeFileSync(dest, Buffer.from(encoded, "base64"));
+  return true;
+}
+
 
 function extractSiteMediaTar(tarFile, outDir) {
   if (!fs.existsSync(tarFile)) return false;
@@ -66,6 +80,15 @@ try {
   if (extracted) console.log(`Site media bundles ready: ${extracted}`);
 } catch (error) {
   console.warn("Site media bundles could not be extracted:", error.message);
+}
+
+try {
+  const desktopHero = path.join(SITE_MEDIA_DIR, "hero", "main-intro-desktop.mp4");
+  if (hydrateBase64Parts(USER_HERO_PARTS_DIR, "main-intro-desktop.b64.", desktopHero)) {
+    console.log("Corrected desktop hero video ready");
+  }
+} catch (error) {
+  console.warn("Corrected desktop hero video could not be prepared:", error.message);
 }
 
 
