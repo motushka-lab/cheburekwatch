@@ -682,6 +682,7 @@ function bindVkSearch(root,{onPick,onAnime}={}){
     if(name==="anime")setTimeout(()=>animeInput?.focus(),20);
     if(name==="vk")setTimeout(()=>vkPublicQuery?.focus(),20);
     if(name==="library")loadLibrary();
+    if(name==="library")loadLibrary();
   });
 }
 function openCreateRoomModal(){
