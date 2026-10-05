@@ -13,6 +13,53 @@ const SESSION_DAYS = 30;
 const MAX_MESSAGE = 500;
 const MAX_NICK = 24;
 
+const SITE_MEDIA_TAR = path.join(__dirname, "assets", "cw-media.tar");
+const SITE_MEDIA_DIR = path.join(__dirname, ".runtime-media");
+
+function extractSiteMediaTar(tarFile, outDir) {
+  if (!fs.existsSync(tarFile)) return false;
+  const data = fs.readFileSync(tarFile);
+  fs.rmSync(outDir, { recursive: true, force: true });
+  fs.mkdirSync(outDir, { recursive: true });
+  let offset = 0;
+  while (offset + 512 <= data.length) {
+    const header = data.subarray(offset, offset + 512);
+    if (header.every(byte => byte === 0)) break;
+    const rawName = header.subarray(0, 100).toString("utf8").replace(/\0.*$/, "");
+    const rawSize = header.subarray(124, 136).toString("ascii").replace(/\0.*$/, "").trim();
+    const size = parseInt(rawSize || "0", 8) || 0;
+    const type = String.fromCharCode(header[156] || 48);
+    offset += 512;
+
+    const cleanName = rawName
+      .replace(/^\.\//, "")
+      .replace(/\\/g, "/")
+      .split("/")
+      .filter(part => part && part !== "." && part !== "..")
+      .join("/");
+    if (cleanName) {
+      const dest = path.join(outDir, cleanName);
+      if (type === "5") {
+        fs.mkdirSync(dest, { recursive: true });
+      } else {
+        fs.mkdirSync(path.dirname(dest), { recursive: true });
+        fs.writeFileSync(dest, data.subarray(offset, offset + size));
+      }
+    }
+    offset += Math.ceil(size / 512) * 512;
+  }
+  return true;
+}
+
+try {
+  if (extractSiteMediaTar(SITE_MEDIA_TAR, SITE_MEDIA_DIR)) {
+    console.log("Site media bundle ready");
+  }
+} catch (error) {
+  console.warn("Site media bundle could not be extracted:", error.message);
+}
+
+
 fs.mkdirSync(DATA_DIR, { recursive: true });
 if (!fs.existsSync(DB_FILE)) {
   fs.writeFileSync(DB_FILE, JSON.stringify({ users: [], sessions: [], rooms: [], messages: [] }, null, 2));
@@ -468,6 +515,8 @@ app.get("/api/profile", requireAuth, (req, res) => {
   };
   res.json({ user: stats });
 });
+
+app.use("/site-assets", express.static(SITE_MEDIA_DIR, { maxAge: "7d", immutable: true }));
 
 // SPA fallback
 app.use(express.static(path.join(__dirname, "public")));
