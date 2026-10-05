@@ -159,8 +159,12 @@ function setupMainHeroVideo(){
   if(!v)return;
   const desktop=window.matchMedia?.("(min-width: 901px)")?.matches;
   const reduced=window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
-  const key="cw-main-intro-played";
-  const seen=sessionStorage.getItem(key)==="1";
+
+  if(desktop && v.getAttribute("src")!==SITE_ASSETS.heroDesktop){
+    v.src=SITE_ASSETS.heroDesktop;
+    v.poster=SITE_ASSETS.heroDesktopFinal;
+    v.load();
+  }
 
   const holdLastFrame=()=>{
     const seek=()=>{
@@ -173,28 +177,20 @@ function setupMainHeroVideo(){
     if(v.readyState>=1)seek();else v.addEventListener("loadedmetadata",seek,{once:true});
   };
 
-  if(desktop){
-    if(v.getAttribute("src")!==SITE_ASSETS.heroDesktop){v.src=SITE_ASSETS.heroDesktop;v.load()}
-    if(reduced||seen){holdLastFrame();return}
-  }else{
-    if(reduced||seen){
-      v.replaceWith(Object.assign(document.createElement("img"),{className:"hero-image hero-final-frame",src:SITE_ASSETS.heroFinal,alt:""}));
-      return;
-    }
-  }
+  if(reduced){holdLastFrame();return}
 
   const start=()=>{
-    if(sessionStorage.getItem(key)==="1")return;
-    sessionStorage.setItem(key,"1");
     v.muted=true;
     v.currentTime=0;
-    v.play().catch(()=>sessionStorage.removeItem(key));
+    v.play().catch(()=>{});
   };
   v.addEventListener("ended",holdLastFrame,{once:true});
+
+  // Intro may still be covering the page. Start immediately when there is no intro,
+  // otherwise start as soon as it finishes. Reloading the page always starts from 0.
   if(document.querySelector(".intro"))window.addEventListener("cw:intro-finished",start,{once:true});
   else start();
 }
-
 async function api(url, options={}) {
   const headers={"Content-Type":"application/json", ...(options.headers||{})};
   const init={...options, credentials:"same-origin", headers};
@@ -398,18 +394,15 @@ async function landingPage(){
        <div class="empty-state"><div class="empty-projector"><i></i><span></span></div><span class="eyebrow">ПУСТОЙ КАДР</span><h3>ПЕРВАЯ ГЛАВА ЕЩЁ НЕ ОТКРЫТА</h3><p>Войдите, откройте комнату и дайте друзьям код. Дальше сюжет разберётся сам.</p><a class="btn btn-primary" href="/login" data-nav>Войти</a></div>${easterPhotoHtml(4,"archive-room-peek")}</section>`;
 
   const desktopHero=window.matchMedia?.("(min-width: 901px)")?.matches;
-  const heroSeen=sessionStorage.getItem("cw-main-intro-played")==="1";
   const heroMedia=desktopHero
     ? `<video id="mainHeroVideo" class="hero-image hero-main-video hero-main-video-desktop" src="${SITE_ASSETS.heroDesktop}" poster="${SITE_ASSETS.heroDesktopFinal}" muted playsinline preload="auto"></video>`
-    : heroSeen
-      ? `<img class="hero-image hero-final-frame" src="${SITE_ASSETS.heroFinal}" alt="">`
-      : `<video id="mainHeroVideo" class="hero-image hero-main-video" src="${SITE_ASSETS.heroVideo}" poster="${SITE_ASSETS.heroFinal}" muted playsinline preload="auto"></video>`;
+    : `<video id="mainHeroVideo" class="hero-image hero-main-video" src="${SITE_ASSETS.heroVideo}" poster="${SITE_ASSETS.heroFinal}" muted playsinline preload="auto"></video>`;
 
   shell(`<main>
     <section class="hero archive-hero">${heroMedia}<div class="hero-overlay"></div>
       <div class="hero-archive-stack" aria-hidden="true"><span style="background-image:url('${archivePhoto(3)}')"></span><span style="background-image:url('${archivePhoto(1)}')"></span></div>
-      <div class="container hero-content reveal"><span class="hero-kicker"><i></i> АКТ I</span><h1>ВАША <em>АРКА.</em></h1>
-      <p>Один Play. Один ритм.</p>
+      <div class="container hero-content reveal"><span class="hero-kicker"><i></i> АКТ I · СУДЬБА УЖЕ НАЖАЛА PLAY</span><h1>ТЫ ДУМАЛ, ЭТО ПРОСТО КИНО?<br><em>ЭТО ВАША АРКА.</em></h1>
+      <p>Подойдите ближе к экрану. Один нажимает Play — и вся компания вступает в ту же секунду. Следующий ход уже общий.</p>
       <div class="hero-actions"><button class="btn btn-primary" data-create>${cwIcon("play")}<span class="btn-label">ОТКРЫТЬ КОМНАТУ</span></button><a class="btn btn-secondary" href="${me?"/rooms":"/login"}" data-nav>ВОЙТИ ПО КОДУ ${cwIcon("arrow")}</a></div></div>
       ${easterPhotoHtml(0,"archive-hero-easter")}
     </section>
