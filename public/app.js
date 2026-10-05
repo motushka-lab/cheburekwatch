@@ -356,7 +356,7 @@ async function roomPage(code){
     const people=room.users||[],label=room.media?(room.media.type==="youtube"?"YouTube":room.media.type==="vk"?"VK Video":"Видео"):"Фильм не выбран";
     shell(`<main class="watch-page"><div class="watch-header container"><a class="btn btn-ghost" href="/rooms" data-nav>${cwIcon("back")}<span>Комнаты</span></a><div class="room-title"><span class="live-dot"></span><div><h3>Комната ${esc(room.code)}</h3><span>${people.length} ${people.length===1?"участник":"участников"} сейчас</span></div></div><div class="participant-stack">${people.slice(0,3).map(u=>avatarHtml(u.nickname)).join("")}${people.length>3?`<span>+${people.length-3}</span>`:""}</div></div>
       <div class="watch-layout container roomlayout ${room.media?"has-media":"needs-media"}"><section class="player-column"><div class="player video-shell" id="videobox">${playerHtml(room.media)}<div class="movie-label"><span>${room.media?"ИСТОЧНИК В КОМНАТЕ":"КИНО НЕ ВЫБРАНО"}</span><strong>${esc(label)}</strong></div><div class="player-overlay" id="playerOverlay"><button type="button" class="player-chat-toggle" id="playerChatToggle">${cwIcon("chat")}</button><button type="button" class="player-fullscreen" id="playerFullscreen">${cwIcon("expand")}</button><div class="overlay-chat" id="overlayChat"><div class="overlay-head"><b>Чат</b><button id="overlayClose">×</button></div><div class="overlay-messages" id="overlayMessages"></div><form id="overlayForm"><input id="overlayInput" maxlength="500" placeholder="Написать сообщение…"><button type="submit">${cwIcon("send",17)}</button></form></div></div></div>
-      <div class="player-controls"><button class="btn btn-icon" id="seekBack" aria-label="Назад на 10 секунд">${cwIcon("back")}</button><button class="btn btn-icon" id="playerToggle" aria-label="Воспроизвести">${cwIcon(room.playing?"pause":"play")}</button><div class="timeline" id="fakeTimeline"><i></i><span></span></div><span class="time" id="playerTime">синхронный просмотр</span><button class="btn btn-icon" aria-label="Громкость">${cwIcon("sound")}</button><button class="btn btn-icon" id="playerFullscreenBottom" aria-label="На весь экран">${cwIcon("expand")}</button></div>
+      <div class="player-controls"><button class="btn btn-icon" id="seekBack" aria-label="Назад на 10 секунд">${cwIcon("back")}</button><button class="btn btn-icon" id="playerToggle" aria-label="Воспроизвести">${cwIcon(room.playing?"pause":"play")}</button><div class="timeline" id="fakeTimeline"><i></i><span></span></div><span class="time" id="playerTime">0:00</span><button class="btn btn-icon" aria-label="Громкость">${cwIcon("sound")}</button><button class="btn btn-icon" id="playerFullscreenBottom" aria-label="На весь экран">${cwIcon("expand")}</button></div>
       <div class="under-player"><div><h3>${esc(label)}</h3><span>Комната ${esc(room.code)}</span></div><div class="reaction-row"><button class="btn btn-secondary" data-room-reaction="♥">${cwIcon("heart")}</button><button class="btn btn-secondary" data-room-reaction="ХА">${cwIcon("smile")}</button><button class="btn btn-primary" id="movieSelectorToggle">${cwIcon("film")}<span class="btn-label">Сменить кино</span></button></div></div>
       <div class="movie-selector" id="movieSelector" hidden><div class="selector-head"><div><span class="eyebrow">Источник</span><h3>Добавить или сменить кино</h3></div><button class="btn btn-icon" id="movieSelectorClose">${cwIcon("close")}</button></div><p class="selector-note">Вставьте ссылку YouTube, VK Video или прямую ссылку на видео. Изменение синхронизируется для комнаты.</p><form id="mediaform" class="mediaform"><input id="mediaurl" placeholder="YouTube / VK / прямая ссылка" required><button class="btn btn-primary">${cwIcon("play")}<span class="btn-label">Поставить кино</span></button></form><div id="mediaerr"></div></div>
       </section>
@@ -505,7 +505,8 @@ function mountMedia(){
   const label=current?(current.type==="youtube"?"YouTube":current.type==="vk"?"VK Video":"Видео"):"Фильм не выбран";
   box.innerHTML=playerHtml(current)+`<div class="movie-label"><span>СЕЙЧАС СМОТРИМ</span><strong>${esc(label)}</strong></div><div class="player-overlay" id="playerOverlay"><button type="button" class="player-chat-toggle" id="playerChatToggle">${cwIcon("chat")}</button><button type="button" class="player-fullscreen" id="playerFullscreen">${cwIcon("expand")}</button><div class="overlay-chat" id="overlayChat"><div class="overlay-head"><b>Чат</b><button id="overlayClose">×</button></div><div class="overlay-messages" id="overlayMessages"></div><form id="overlayForm"><input id="overlayInput" maxlength="500" placeholder="Написать сообщение…"><button type="submit">${cwIcon("send",17)}</button></form></div></div>`;
   setupPlayerOverlay();
-  if(!current)return;
+  updatePlayerProgress();
+  if(!current){clearInterval(window.__cwProgressWatch);return;}
   if(current.type==="youtube"){
     window.onYouTubeIframeAPIReady=()=>{if(room?.media?.type==="youtube")initYT()};
     loadYouTubeAPI().then(ok=>{if(ok)initYT();else{const host=$("#yt");if(host)host.innerHTML='<div class="player-error"><b>YouTube сейчас недоступен</b><small>Попробуйте VK Video или прямую ссылку.</small></div>'}});
@@ -518,7 +519,8 @@ function mountMedia(){
     localVideo.addEventListener("play",()=>{if(!suppress&&Date.now()>remoteApplyUntil)sendState(true,localVideo.currentTime,"play")});
     localVideo.addEventListener("pause",()=>{if(!suppress&&Date.now()>remoteApplyUntil)sendState(false,localVideo.currentTime,"pause")});
     localVideo.addEventListener("seeked",()=>{if(!suppress&&Date.now()>remoteApplyUntil)sendState(!localVideo.paused,localVideo.currentTime,"seek")});
-    localVideo.addEventListener("loadedmetadata",()=>applyRemoteState(room));
+    localVideo.addEventListener("loadedmetadata",()=>{applyRemoteState(room);startPlayerProgressWatch()});
+    localVideo.addEventListener("timeupdate",updatePlayerProgress);
   }
 }
 function setupPlayerOverlay(){
@@ -537,7 +539,7 @@ function initYT(){
     videoId:room.media.videoId,width:"100%",height:"100%",
     playerVars:{playsinline:1,rel:0,enablejsapi:1,origin:location.origin},
     events:{
-      onReady:()=>{applyRemoteState(room);startYTSeekWatch();},
+      onReady:()=>{applyRemoteState(room);startYTSeekWatch();startPlayerProgressWatch();},
       onStateChange:e=>{
         if(suppress || Date.now()<remoteApplyUntil)return;
         if(e.data===YT.PlayerState.PLAYING)sendState(true,player.getCurrentTime(),"play");
@@ -580,12 +582,41 @@ function initVK(){
         }
         lastVKPosition=p;
       });
-      applyRemoteState(room);
+      applyRemoteState(room);startPlayerProgressWatch();
     }catch(e){ console.warn("VK player API init failed",e); }
   };
   if(window.VK?.VideoPlayer) attach();
   else iframe.addEventListener("load",attach,{once:true});
 }
+
+function getDuration(){
+  try{
+    if(player?.getDuration)return Number(player.getDuration())||0;
+    if(vkPlayer?.getDuration)return Number(vkPlayer.getDuration())||0;
+    if(localVideo && Number.isFinite(localVideo.duration))return Number(localVideo.duration)||0;
+  }catch{}
+  return 0;
+}
+function formatPlayerTime(seconds){
+  seconds=Math.max(0,Math.floor(Number(seconds)||0));
+  const h=Math.floor(seconds/3600),m=Math.floor((seconds%3600)/60),sec=seconds%60;
+  return h?String(h)+":"+String(m).padStart(2,"0")+":"+String(sec).padStart(2,"0"):String(m)+":"+String(sec).padStart(2,"0");
+}
+function updatePlayerProgress(){
+  const timeline=$("#fakeTimeline"),time=$("#playerTime");
+  if(!timeline)return;
+  const pos=Math.max(0,Number(getPosition())||0);
+  const dur=Math.max(0,Number(getDuration())||0);
+  const pct=dur>0?Math.max(0,Math.min(100,(pos/dur)*100)):0;
+  timeline.style.setProperty("--cw-progress",pct.toFixed(3)+"%");
+  if(time)time.textContent=dur>0?`${formatPlayerTime(pos)} / ${formatPlayerTime(dur)}`:(pos>0?formatPlayerTime(pos):"0:00");
+}
+function startPlayerProgressWatch(){
+  clearInterval(window.__cwProgressWatch);
+  updatePlayerProgress();
+  window.__cwProgressWatch=setInterval(updatePlayerProgress,500);
+}
+
 async function sendState(playing,position,action){
   if(suppress||!room?.code)return;
   const body={playing:Boolean(playing),position:Number(position)||0,action:action|| (playing?"play":"pause")};
@@ -633,12 +664,13 @@ function applyRemoteState(st){
   }catch{}
   lastYTPosition=target;
   lastVKPosition=target;
+  updatePlayerProgress();
   setTimeout(()=>{suppress=false;},1250);
 }
 
 async function render(){
   if(eventSource){eventSource.close();eventSource=null}
-  clearInterval(window.__cwHeartbeat);clearInterval(window.__cwMessageRefresh);clearInterval(window.__ytSeekWatch);
+  clearInterval(window.__cwHeartbeat);clearInterval(window.__cwMessageRefresh);clearInterval(window.__ytSeekWatch);clearInterval(window.__cwProgressWatch);
   const path=location.pathname;
   if(path==="/"){await landingPage();return}
   if(path==="/login"){authPage("login");return}
