@@ -15,6 +15,10 @@ const MAX_NICK = 24;
 const VK_API_TOKEN = String(process.env.VK_ACCESS_TOKEN || process.env.VK_USER_TOKEN || "").trim();
 const VK_API_VERSION = String(process.env.VK_API_VERSION || "5.199").trim();
 const YOUTUBE_API_KEY = String(process.env.YOUTUBE_API_KEY || "").trim();
+const TELEGRAM_BOT_TOKEN = String(process.env.TELEGRAM_BOT_TOKEN || "").trim();
+const TELEGRAM_ADMIN_ID = String(process.env.TELEGRAM_ADMIN_ID || "").trim();
+const TELEGRAM_BOT_API_BASE = String(process.env.TELEGRAM_BOT_API_BASE || "https://api.telegram.org").replace(/\/$/,"");
+const TELEGRAM_OFFICIAL_FILE_LIMIT = 20 * 1024 * 1024;
 
 const SITE_MEDIA_TARS = [
   "cw-media-a.tar",
@@ -103,6 +107,7 @@ if (!fs.existsSync(DB_FILE)) {
 }
 
 let db = JSON.parse(fs.readFileSync(DB_FILE, "utf8"));
+if (!Array.isArray(db.animeLibrary)) db.animeLibrary = [];
 const sseClients = new Map(); // roomCode -> Set(response)
 const presence = new Map();   // roomCode -> Map(userId -> {user, lastSeen})
 const vkUserTokens = new Map(); // CheburekWatch userId -> { token, expiresAt } (memory only)
@@ -111,6 +116,236 @@ function saveDb() {
   const tmp = DB_FILE + ".tmp";
   fs.writeFileSync(tmp, JSON.stringify(db, null, 2));
   fs.renameSync(tmp, DB_FILE);
+}
+
+function normalizeLibraryTitle(value) {
+  return String(value || "")
+    .normalize("NFKC")
+    .toLowerCase()
+    .replace(/ё/g,"е")
+    .replace(/[^\p{L}\p{N}]+/gu," ")
+    .trim();
+}
+function animeLibraryScore(entry, aliases, episode) {
+  if (Number(entry?.episode) !== Number(episode)) return -1;
+  const key = normalizeLibraryTitle(entry?.title);
+  if (!key) return -1;
+  let score = 0;
+  for (const alias of aliases) {
+    const a = normalizeLibraryTitle(alias);
+    if (!a) continue;
+    if (a === key) score = Math.max(score, 100);
+    else if (a.includes(key) || key.includes(a)) score = Math.max(score, 60);
+    const at = new Set(a.split(" ").filter(x=>x.length>=3));
+    const kt = new Set(key.split(" ").filter(x=>x.length>=3));
+    let shared = 0;
+    for (const t of at) if (kt.has(t)) shared++;
+    score = Math.max(score, shared * 10);
+  }
+  return score;
+}
+function findAnimeLibraryEntry(aliases, episode) {
+  return db.animeLibrary
+    .map(entry=>({entry,score:animeLibraryScore(entry,aliases,episode)}))
+    .filter(x=>x.score>0)
+    .sort((a,b)=>b.score-a.score || String(b.entry.createdAt).localeCompare(String(a.entry.createdAt)))[0]?.entry || null;
+}
+function upsertAnimeLibraryEntry(entry) {
+  const titleKey = normalizeLibraryTitle(entry.title);
+  const episode = Number(entry.episode);
+  const existingIndex = db.animeLibrary.findIndex(x =>
+    normalizeLibraryTitle(x.title) === titleKey && Number(x.episode) === episode
+  );
+  const item = {
+    id: existingIndex >= 0 ? db.animeLibrary[existingIndex].id : id(),
+    title: String(entry.title || "").trim().slice(0,160),
+    episode,
+    kind: entry.kind,
+    url: entry.url || null,
+    telegramFileId: entry.telegramFileId || null,
+    telegramFileUniqueId: entry.telegramFileUniqueId || null,
+    fileSize: Number(entry.fileSize || 0),
+    mimeType: String(entry.mimeType || "video/mp4").slice(0,120),
+    fileName: String(entry.fileName || "episode.mp4").slice(0,180),
+    createdAt: new Date().toISOString()
+  };
+  if (existingIndex >= 0) db.animeLibrary[existingIndex] = item;
+  else db.animeLibrary.push(item);
+  saveDb();
+  return item;
+}
+function parseAnimeBotMeta(raw, needsUrl=false) {
+  const text = String(raw || "").replace(/^\/add(?:@\w+)?\s*/i,"").trim();
+  const parts = text.split("|").map(x=>x.trim()).filter(Boolean);
+  if ((needsUrl && parts.length < 3) || (!needsUrl && parts.length < 2)) return null;
+  const title = parts[0];
+  const episode = Number(parts[1]);
+  const url = needsUrl ? parts.slice(2).join("|").trim() : "";
+  if (!title || !Number.isFinite(episode) || episode < 1 || episode > 9999) return null;
+  return { title, episode:Math.floor(episode), url };
+}
+async function telegramApi(method, body={}, timeoutMs=35000) {
+  if (!TELEGRAM_BOT_TOKEN) throw new Error("Telegram bot token is not configured");
+  const controller = new AbortController();
+  const timer = setTimeout(()=>controller.abort(), timeoutMs);
+  try {
+    const response = await fetch(`${TELEGRAM_BOT_API_BASE}/bot${TELEGRAM_BOT_TOKEN}/${method}`, {
+      method:"POST",
+      signal:controller.signal,
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify(body)
+    });
+    const data = await response.json();
+    if (!response.ok || !data.ok) throw new Error(String(data?.description || `Telegram ${method} failed`));
+    return data.result;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+async function telegramSay(chatId, text) {
+  try {
+    await telegramApi("sendMessage", {
+      chat_id:chatId,
+      text:String(text).slice(0,3900),
+      disable_web_page_preview:true
+    }, 12000);
+  } catch (e) {
+    console.warn("Telegram sendMessage failed:", e.message);
+  }
+}
+function telegramIsAdmin(message) {
+  return !!TELEGRAM_ADMIN_ID && String(message?.from?.id || "") === TELEGRAM_ADMIN_ID;
+}
+async function handleTelegramMessage(message) {
+  if (!message?.chat?.id || !message?.from?.id) return;
+  const chatId = message.chat.id;
+  const senderId = String(message.from.id);
+  const text = String(message.text || message.caption || "").trim();
+
+  if (/^\/start(?:@\w+)?\b/i.test(text) || /^\/help(?:@\w+)?\b/i.test(text)) {
+    const auth = telegramIsAdmin(message);
+    const setup = TELEGRAM_ADMIN_ID
+      ? (auth ? "Доступ подтверждён." : "Этот аккаунт не назначен администратором библиотеки.")
+      : `Сначала добавьте в Render переменную TELEGRAM_ADMIN_ID=${senderId} и перезапустите сервис.`;
+    await telegramSay(chatId,
+`CheburekWatch Library
+Ваш Telegram ID: ${senderId}
+${setup}
+
+Как добавлять:
+1) Ссылка: Название | номер серии | https://.../episode.mp4
+2) Видео/документ: отправьте файл с подписью Название | номер серии
+3) /list — последние записи
+4) /delete Название | номер серии
+
+Используйте только видео и ссылки, которыми вы имеете право делиться.`);
+    return;
+  }
+
+  if (!TELEGRAM_ADMIN_ID) {
+    await telegramSay(chatId, `Библиотека ещё не привязана. Ваш ID: ${senderId}. Добавьте TELEGRAM_ADMIN_ID в Render.`);
+    return;
+  }
+  if (!telegramIsAdmin(message)) {
+    await telegramSay(chatId, "Нет доступа к библиотеке.");
+    return;
+  }
+
+  if (/^\/list(?:@\w+)?\b/i.test(text)) {
+    const rows = [...db.animeLibrary].sort((a,b)=>String(b.createdAt).localeCompare(String(a.createdAt))).slice(0,30);
+    if (!rows.length) return telegramSay(chatId,"Библиотека пока пустая.");
+    return telegramSay(chatId, rows.map((x,i)=>`${i+1}. ${x.title} — серия ${x.episode} [${x.kind==="telegram"?"файл":"ссылка"}]`).join("\n"));
+  }
+
+  if (/^\/delete(?:@\w+)?\b/i.test(text)) {
+    const meta = parseAnimeBotMeta(text.replace(/^\/delete(?:@\w+)?\s*/i,""), false);
+    if (!meta) return telegramSay(chatId,"Формат: /delete Название | номер серии");
+    const key = normalizeLibraryTitle(meta.title);
+    const before = db.animeLibrary.length;
+    db.animeLibrary = db.animeLibrary.filter(x => !(normalizeLibraryTitle(x.title)===key && Number(x.episode)===meta.episode));
+    if (db.animeLibrary.length !== before) saveDb();
+    return telegramSay(chatId, db.animeLibrary.length !== before ? `Удалено: ${meta.title}, серия ${meta.episode}.` : "Такой записи не найдено.");
+  }
+
+  const media = message.video || (message.document && (
+    String(message.document.mime_type || "").startsWith("video/") ||
+    /\.(mp4|webm|ogg)$/i.test(String(message.document.file_name || ""))
+  ) ? message.document : null);
+
+  if (media) {
+    const meta = parseAnimeBotMeta(message.caption || "", false);
+    if (!meta) return telegramSay(chatId,"Подпись к файлу должна быть: Название | номер серии");
+    const size = Number(media.file_size || 0);
+    const usingOfficial = /^https:\/\/api\.telegram\.org$/i.test(TELEGRAM_BOT_API_BASE);
+    if (usingOfficial && size > TELEGRAM_OFFICIAL_FILE_LIMIT) {
+      return telegramSay(chatId,
+`Файл ${Math.round(size/1024/1024)} МБ слишком большой для обычного Telegram Bot API: он позволяет боту скачать только до 20 МБ. Для полной серии лучше пришлите прямую ссылку на разрешённый видеофайл. Поддержку Local Bot API для больших файлов можно включить отдельно.`);
+    }
+    const item = upsertAnimeLibraryEntry({
+      title:meta.title,
+      episode:meta.episode,
+      kind:"telegram",
+      telegramFileId:String(media.file_id || ""),
+      telegramFileUniqueId:String(media.file_unique_id || ""),
+      fileSize:size,
+      mimeType:String(media.mime_type || "video/mp4"),
+      fileName:String(media.file_name || `episode-${meta.episode}.mp4`)
+    });
+    return telegramSay(chatId,`Сохранено: ${item.title} — серия ${item.episode}. Теперь она доступна на сайте.`);
+  }
+
+  const meta = parseAnimeBotMeta(text, true);
+  if (meta) {
+    try { validateVideo(meta.url); }
+    catch(e) { return telegramSay(chatId,`Ссылка не подходит для плеера: ${e.message}`); }
+    const item = upsertAnimeLibraryEntry({
+      title:meta.title,
+      episode:meta.episode,
+      kind:"url",
+      url:meta.url
+    });
+    return telegramSay(chatId,`Сохранено: ${item.title} — серия ${item.episode}. Теперь она доступна на сайте.`);
+  }
+
+  await telegramSay(chatId,"Не понял запись. Ссылка: Название | серия | URL. Файл: подпись Название | серия. /help — примеры.");
+}
+let telegramPolling = false;
+let telegramUpdateOffset = 0;
+async function startTelegramBot() {
+  if (!TELEGRAM_BOT_TOKEN || telegramPolling) return;
+  telegramPolling = true;
+  try {
+    const me = await telegramApi("getMe",{},12000);
+    console.log(`Telegram library bot ready: @${me?.username || "bot"}`);
+  } catch(e) {
+    console.warn("Telegram bot could not start:", e.message);
+    telegramPolling = false;
+    return;
+  }
+  while (telegramPolling) {
+    try {
+      const updates = await telegramApi("getUpdates", {
+        offset:telegramUpdateOffset,
+        timeout:25,
+        allowed_updates:["message"]
+      }, 35000);
+      for (const update of Array.isArray(updates)?updates:[]) {
+        telegramUpdateOffset = Math.max(telegramUpdateOffset, Number(update.update_id || 0) + 1);
+        try { await handleTelegramMessage(update.message); }
+        catch(e) { console.warn("Telegram update failed:", e.message); }
+      }
+    } catch(e) {
+      if (!telegramPolling) break;
+      console.warn("Telegram polling:", e.message);
+      await new Promise(r=>setTimeout(r,2500));
+    }
+  }
+}
+async function resolveTelegramFile(entry) {
+  const file = await telegramApi("getFile",{file_id:entry.telegramFileId},12000);
+  const filePath = String(file?.file_path || "");
+  if (!filePath) throw new Error("Telegram не вернул путь к файлу");
+  return filePath;
 }
 
 function id() { return crypto.randomUUID(); }
@@ -895,38 +1130,110 @@ app.post("/api/anime/episode-source", requireAuth, async (req, res) => {
     String(req.body?.romaji || "").trim(),
     String(req.body?.native || "").trim(),
     ...(Array.isArray(req.body?.synonyms) ? req.body.synonyms.map(v=>String(v).trim()) : [])
-  ].filter(Boolean).slice(0,8);
+  ].filter(Boolean).slice(0,10);
   if (!aliases.length) return res.status(400).json({ error:"Не удалось определить название аниме" });
 
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 12000);
-  try {
-    const found = await resolveBiliEpisode(aliases, episode, controller.signal);
-    if (!found) {
-      return res.status(404).json({
-        error:"Эту серию не удалось найти в официальном аниме-плеере. Для некоторых тайтлов доступ зависит от региона.",
-        code:"ANIME_EPISODE_NOT_FOUND"
-      });
+  const entry = findAnimeLibraryEntry(aliases, episode);
+  if (!entry) {
+    return res.status(404).json({
+      error:"Этой серии пока нет в библиотеке. Добавьте её через Telegram-бота.",
+      code:"ANIME_LIBRARY_MISSING"
+    });
+  }
+
+  if (entry.kind === "url") {
+    try { validateVideo(entry.url); }
+    catch(e) {
+      return res.status(410).json({ error:"Ссылка этой серии больше не подходит для плеера. Обновите её через Telegram-бота." });
     }
-    res.json({
+    return res.json({
       source:{
-        type:"bilibili",
-        url:found.pageUrl,
-        embedUrl:found.playerUrl,
-        title:`${found.title} · серия ${episode}`,
-        thumbnail:found.thumbnail,
-        duration:0,
-        regionLimited:found.regionLimited,
-        badge:found.badge
+        type:"library",
+        url:entry.url,
+        title:`${entry.title} · серия ${episode}`,
+        thumbnail:"",
+        duration:0
       }
     });
-  } catch(error) {
-    const msg = error?.name==="AbortError"
-      ? "Аниме-плеер отвечает слишком долго"
-      : "Не удалось подключиться к аниме-плееру";
-    res.status(502).json({ error:msg, code:"ANIME_PROVIDER_ERROR" });
-  } finally {
-    clearTimeout(timer);
+  }
+
+  if (entry.kind === "telegram" && entry.telegramFileId) {
+    const proto = String(req.headers["x-forwarded-proto"] || req.protocol || "https").split(",")[0].trim();
+    const host = req.get("host");
+    const safeName = String(entry.fileName || "episode.mp4").replace(/[^A-Za-z0-9._-]/g,"_");
+    const ext = /\.(mp4|webm|ogg)$/i.test(safeName) ? "" : ".mp4";
+    return res.json({
+      source:{
+        type:"library",
+        url:`${proto}://${host}/api/library/telegram/${entry.id}/${safeName}${ext}`,
+        title:`${entry.title} · серия ${episode}`,
+        thumbnail:"",
+        duration:0
+      }
+    });
+  }
+
+  return res.status(410).json({ error:"Запись библиотеки повреждена. Перешлите серию боту заново." });
+});
+
+// Secure same-origin proxy: Telegram bot token never reaches the browser.
+app.get("/api/library/telegram/:entryId/:name", requireAuth, async (req, res) => {
+  const entry = db.animeLibrary.find(x => x.id === req.params.entryId && x.kind === "telegram");
+  if (!entry) return res.status(404).end();
+  try {
+    const filePath = await resolveTelegramFile(entry);
+    res.setHeader("Content-Type", entry.mimeType || "video/mp4");
+    res.setHeader("Cache-Control","private, max-age=300");
+    res.setHeader("Content-Disposition", `inline; filename="${String(entry.fileName || "episode.mp4").replace(/["\\]/g,"_")}"`);
+
+    if (path.isAbsolute(filePath) && fs.existsSync(filePath)) {
+      const stat = fs.statSync(filePath);
+      const range = String(req.headers.range || "");
+      if (range) {
+        const m = range.match(/bytes=(\d*)-(\d*)/);
+        const start = m && m[1] ? Number(m[1]) : 0;
+        const end = m && m[2] ? Math.min(Number(m[2]), stat.size-1) : stat.size-1;
+        if (!Number.isFinite(start) || start<0 || start>=stat.size || end<start) {
+          res.status(416).setHeader("Content-Range",`bytes */${stat.size}`);
+          return res.end();
+        }
+        res.status(206);
+        res.setHeader("Accept-Ranges","bytes");
+        res.setHeader("Content-Range",`bytes ${start}-${end}/${stat.size}`);
+        res.setHeader("Content-Length",String(end-start+1));
+        return fs.createReadStream(filePath,{start,end}).pipe(res);
+      }
+      res.setHeader("Content-Length",String(stat.size));
+      res.setHeader("Accept-Ranges","bytes");
+      return fs.createReadStream(filePath).pipe(res);
+    }
+
+    const fileUrl = `${TELEGRAM_BOT_API_BASE}/file/bot${TELEGRAM_BOT_TOKEN}/${filePath.replace(/^\/+/, "")}`;
+    const headers = {};
+    if (req.headers.range) headers.Range = req.headers.range;
+    const upstream = await fetch(fileUrl,{headers});
+    if (!upstream.ok && upstream.status !== 206) {
+      console.warn("Telegram media upstream:", upstream.status);
+      return res.status(502).end();
+    }
+    res.status(upstream.status);
+    for (const h of ["content-length","content-range","accept-ranges","etag","last-modified"]) {
+      const value = upstream.headers.get(h);
+      if (value) res.setHeader(h, value);
+    }
+    const reader = upstream.body?.getReader();
+    if (!reader) return res.status(502).end();
+    req.on("close",()=>{ try{reader.cancel()}catch{} });
+    while (true) {
+      const {done,value} = await reader.read();
+      if (done) break;
+      if (!res.write(Buffer.from(value))) await new Promise(resolve=>res.once("drain",resolve));
+    }
+    res.end();
+  } catch(e) {
+    console.warn("Telegram media proxy failed:", e.message);
+    if (!res.headersSent) res.status(502).end();
+    else res.end();
   }
 });
 
@@ -1172,9 +1479,11 @@ app.get("*", (req, res) => res.sendFile(path.join(__dirname, "public", "index.ht
 
 const server = app.listen(PORT, HOST, () => {
   console.log(`CheburekWatch listening on ${HOST}:${PORT}`);
+  startTelegramBot().catch(e=>console.warn("Telegram bot start failed:",e.message));
 });
 
 function shutdown(signal) {
+  telegramPolling = false;
   console.log(`Received ${signal}, shutting down...`);
   for (const clients of sseClients.values()) {
     for (const res of clients) {
