@@ -85,210 +85,311 @@ async function api(url, options={}) {
 function esc(s){const d=document.createElement("div");d.textContent=s;return d.innerHTML}
 let navigationBusy = false;
 function navigate(path){
-  if (!path) return;
-  if (location.pathname === path) { render(); return; }
-  history.pushState({}, "", path);
-  render();
+  if(!path || navigationBusy) return;
+  if(location.pathname===path){ render(); return; }
+  navigationBusy=true;
+  const stage=document.querySelector(".page-stage");
+  const curtain=document.querySelector(".page-curtain");
+  stage?.classList.add("is-transitioning");
+  curtain?.classList.add("active");
+  setTimeout(()=>{
+    history.pushState({},"",path);
+    Promise.resolve(render()).finally(()=>setTimeout(()=>{navigationBusy=false},180));
+  },170);
 }
 window.addEventListener("popstate", render);
 
 function prefixLabel(user=me){
   return `<span class="prefix">${esc(user.secretPrefix || user.prefix || "Лошара")}</span>`;
 }
-function shell(content){
-  app.innerHTML = `<div class="app"><nav class="nav">
-    <a class="brand" href="/rooms" data-nav><span class="brand-mark">CW</span><span class="brand-word">CheburekWatch</span></a>
-    <div class="navlinks">${me ? `<a class="navlink" href="/rooms" data-nav>Комнаты</a><a class="navlink" href="/profile" data-nav><span class="nav-dot"></span>Профиль · Ур. ${me.level}</a><button class="nav-logout" id="logout">Выйти</button>` : ""}</div>
-    <div class="spacer"></div><div class="userpill">${me ? `${prefixLabel(me)} ${esc(me.nickname)} <span class="level-badge">ур. ${me.level}</span>` : ""}</div>
-  </nav>${content}</div>`;
-  document.querySelectorAll("[data-nav]").forEach(a=>a.onclick=e=>{e.preventDefault();navigate(a.getAttribute("href"))});
-  $("#logout")?.addEventListener("click", async()=>{await api("/api/logout",{method:"POST"});me=null;navigate("/login")});
-  mountCinemaIntro();
-}
-function mountCinemaIntro(){
-  if(location.pathname!=="/rooms" || sessionStorage.getItem("cw-intro-seen")) return;
-  sessionStorage.setItem("cw-intro-seen","1");
-  const intro=document.createElement("div");
-  intro.className="cinema-intro";
-  intro.innerHTML=`
-    <div class="cinema-intro-noise"></div>
-    <div class="cinema-intro-backdrop"><span class="intro-orb intro-orb-a"></span><span class="intro-orb intro-orb-b"></span><span class="intro-beam intro-beam-a"></span><span class="intro-beam intro-beam-b"></span></div>
-    <div class="intro-film intro-film-a">${CW_PHOTOS.slice(0,6).map((p,i)=>`<img src="${p.src}" alt="" data-film-index="${i}">`).join("")}</div>
-    <div class="intro-film intro-film-b">${CW_PHOTOS.slice(6,12).map((p,i)=>`<img src="${p.src}" alt="" data-film-index="${i}">`).join("")}</div>
-    <div class="cinema-intro-grid"></div>
-    <div class="cinema-intro-curtain curtain-left"></div><div class="cinema-intro-curtain curtain-right"></div>
-    <div class="cinema-intro-center">
-      <div class="cinema-intro-topline"><span></span><b>CHEBUREKWATCH</b><span></span></div>
-      <div class="cinema-intro-mark"><span>CW</span><i></i></div>
-      <div class="cinema-intro-kicker">ONE FRIEND MODE · 2026</div>
-      <div class="cinema-intro-title"><span>ABSOLUTE</span><em>CINEMA</em></div>
-      <div class="cinema-intro-sub">смотри вместе · смейся громко · паузу жми коллективно</div>
-      <div class="cinema-intro-line"><span></span><b>watch party is loading</b><span></span></div>
-      <button class="cinema-intro-enter" type="button"><span>Включить кино</span><i>→</i></button>
-      <div class="cinema-intro-skip">автозапуск · 04.2 сек</div>
-    </div>
-    <div class="cinema-intro-progress"><span></span></div>`;
-  document.body.appendChild(intro);
-  let closed=false;
-  const close=()=>{
-    if(closed) return; closed=true;
-    intro.classList.add("is-leaving");
-    setTimeout(()=>intro.remove(),900);
+function figmaImages(){
+  return {
+    hero:"https://images.unsplash.com/photo-1477346611705-65d1883cee1e?auto=format&fit=crop&w=1800&q=88",
+    cinema:"https://images.unsplash.com/photo-1485095329183-d0797cdc5676?auto=format&fit=crop&w=1600&q=85",
+    redEye:"https://images.unsplash.com/photo-1546803073-23568b8c98e6?auto=format&fit=crop&w=900&q=85",
+    forest:"https://images.unsplash.com/photo-1475070929565-c985b496cb9f?auto=format&fit=crop&w=900&q=85",
+    portrait:"https://images.unsplash.com/photo-1637961239771-6578d3eb8d8e?auto=format&fit=crop&w=900&q=85",
+    mountain:"https://images.unsplash.com/photo-1670702146868-bc7797ef47a5?auto=format&fit=crop&w=900&q=85",
+    road:"https://images.unsplash.com/photo-1729882417531-eead4fe0bb2b?auto=format&fit=crop&w=900&q=85",
+    lake:"https://images.unsplash.com/photo-1661124280301-ca0e33ceb438?auto=format&fit=crop&w=900&q=85",
+    chairs:"https://images.unsplash.com/photo-1595769816263-9b910be24d5f?auto=format&fit=crop&w=900&q=85"
   };
-  intro.querySelector(".cinema-intro-enter").addEventListener("click",close);
-  setTimeout(close,4200);
 }
+
+function figmaMovies(){
+  const i=figmaImages();
+  return [
+    {title:"Сквозь снег",year:"2013",image:i.mountain},
+    {title:"Сталкер",year:"1979",image:i.road},
+    {title:"Вечное сияние",year:"2004",image:i.redEye},
+    {title:"Патерсон",year:"2016",image:i.forest}
+  ];
+}
+
+function figmaDemoRooms(){
+  const i=figmaImages();
+  return [
+    {title:"Ночной экспресс",film:"Сквозь снег",image:i.mountain,viewers:12,tag:"Фантастика",host:"Илья",status:"В эфире",demo:true},
+    {title:"Кино после полуночи",film:"Вечное сияние",image:i.redEye,viewers:7,tag:"Драма",host:"Маша",status:"Начали недавно",demo:true},
+    {title:"Тихий клуб",film:"Патерсон",image:i.forest,viewers:4,tag:"Авторское",host:"Саша",status:"В эфире",demo:true},
+    {title:"Красная комната",film:"Убийца",image:i.portrait,viewers:9,tag:"Триллер",host:"Аня",status:"05:12 до начала",demo:true},
+    {title:"Плёнка 35 мм",film:"Сталкер",image:i.road,viewers:6,tag:"Классика",host:"Костя",status:"В эфире",demo:true},
+    {title:"Дальний берег",film:"Изгнание",image:i.lake,viewers:3,tag:"Драма",host:"Лера",status:"Начали недавно",demo:true}
+  ];
+}
+
+function cwIcon(name,size=20){
+  const p={
+    arrow:'<path d="M5 12h14"/><path d="m14 7 5 5-5 5"/>',
+    back:'<path d="m15 18-6-6 6-6"/>',
+    chat:'<path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z"/>',
+    check:'<path d="m5 12 4 4L19 6"/>',
+    close:'<path d="M6 6l12 12"/><path d="m18 6-12 12"/>',
+    expand:'<path d="M8 3H3v5"/><path d="m3 3 6 6"/><path d="M16 21h5v-5"/><path d="m21 21-6-6"/>',
+    film:'<rect x="3" y="5" width="18" height="14" rx="1"/><path d="M7 5v14M17 5v14M3 9h4M3 15h4M17 9h4M17 15h4"/>',
+    heart:'<path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1.1-1.1a5.5 5.5 0 0 0-7.8 7.8l1.1 1.1L12 21l7.8-7.5a5.5 5.5 0 0 0 1-8.9z"/>',
+    home:'<path d="m3 11 9-8 9 8"/><path d="M5 10v10h14V10"/>',
+    lock:'<rect x="5" y="10" width="14" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/>',
+    pause:'<path d="M9 5v14"/><path d="M15 5v14"/>',
+    play:'<path d="m8 5 11 7-11 7z"/>',
+    plus:'<path d="M12 5v14"/><path d="M5 12h14"/>',
+    search:'<circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/>',
+    send:'<path d="m22 2-7 20-4-9-9-4z"/><path d="M22 2 11 13"/>',
+    smile:'<circle cx="12" cy="12" r="9"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><path d="M9 9h.01M15 9h.01"/>',
+    sound:'<path d="M11 5 6 9H2v6h4l5 4z"/><path d="M15 9a4 4 0 0 1 0 6"/><path d="M18 6a8 8 0 0 1 0 12"/>',
+    user:'<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>',
+    users:'<circle cx="9" cy="8" r="3"/><path d="M3 19a6 6 0 0 1 12 0"/><path d="M16 5a3 3 0 0 1 0 6M17 14a5 5 0 0 1 4 5"/>'
+  };
+  return `<svg class="icon icon-${name}" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${p[name]||""}</svg>`;
+}
+
+function logoHtml(compact=false){
+  return `<div class="logo" aria-label="CheburekWatch"><span class="logo-mark">Ч</span>${compact?"":'<span>CHEBUREK<span>WATCH</span></span>'}</div>`;
+}
+
+function avatarHtml(name,size="md"){
+  const safe=esc(name||"?");
+  return `<div class="avatar avatar-${size}" title="${safe}">${esc(String(name||"?").slice(0,1).toUpperCase())}</div>`;
+}
+
+function headerHtml(){
+  const path=location.pathname;
+  const activeHome=path==="/";
+  const activeRooms=path==="/rooms";
+  return `<header class="header"><div class="container header-inner">
+    <a href="/" data-nav class="logo-button">${logoHtml()}</a>
+    <nav class="desktop-nav">
+      <a class="btn btn-ghost ${activeHome?"active":""}" href="/" data-nav>Главная</a>
+      <a class="btn btn-ghost ${activeRooms?"active":""}" href="${me?"/rooms":"/login"}" data-nav>Комнаты</a>
+    </nav>
+    <div class="header-actions">
+      ${me?`<button class="btn btn-secondary" data-create>${cwIcon("plus")}<span class="btn-label">Создать комнату</span></button>
+      <a class="btn btn-icon" href="/profile" data-nav aria-label="Профиль">${avatarHtml(me.nickname,"sm")}</a>`:`<a class="btn btn-secondary" href="/login" data-nav>Войти</a>`}
+    </div>
+  </div></header>`;
+}
+
+function bottomNavHtml(){
+  if(!me) return "";
+  const p=location.pathname;
+  return `<nav class="bottom-nav">
+    <a class="btn btn-ghost ${p==="/"?"active":""}" href="/" data-nav>${cwIcon("home")}<span>Главная</span></a>
+    <a class="btn btn-ghost ${p==="/rooms"?"active":""}" href="/rooms" data-nav>${cwIcon("search")}<span>Комнаты</span></a>
+    <a class="btn btn-ghost ${p==="/profile"?"active":""}" href="/profile" data-nav>${cwIcon("user")}<span>Профиль</span></a>
+  </nav>`;
+}
+
+function roomVisual(index=0){
+  const d=figmaDemoRooms();
+  return d[index%d.length];
+}
+
+function roomCardHtml(r,index=0){
+  const v=r.demo?r:roomVisual(index);
+  const title=r.demo?r.title:`Комната ${esc(r.code)}`;
+  const film=r.demo?r.film:(r.media?(r.media.type==="youtube"?"YouTube":r.media.type==="vk"?"VK Video":"Видео файл"):"Фильм ещё не выбран");
+  const viewers=r.demo?r.viewers:Number(r.participantCount||0);
+  const host=r.demo?r.host:(r.ownerId===me?.id?me.nickname:"друг");
+  const status=r.demo?r.status:(r.media?"В эфире":"Ждёт фильм");
+  const action=r.demo?`data-demo-open`:`data-open="${esc(r.code)}"`;
+  const search=esc(`${title} ${film} ${r.code||""}`.toLowerCase());
+  return `<article class="room-card reveal" data-search="${search}" style="animation-delay:${index*60}ms"><div class="poster">
+    <img src="${v.image}" alt=""><div class="poster-shade"></div><span class="badge">${esc(v.tag||"Кинокомната")}</span>
+    <span class="room-status"><i></i>${esc(status)}</span>
+    <div class="poster-meta"><span class="viewers">${cwIcon("users",16)} ${viewers} смотрят</span><h3>${title}</h3><p>${esc(film)}</p><span class="room-host">Ведёт ${esc(host)}</span>
+      <button class="btn btn-paper" type="button" ${action}>Войти ${cwIcon("arrow",17)}</button></div>
+  </div></article>`;
+}
+
+function emptyStateHtml(){
+  return `<div class="empty-state"><div class="empty-projector"><i></i><span></span></div><span class="eyebrow">Антракт</span><h3>Здесь пока тихо</h3><p>Друзья ещё выбирают кино. Можно начать сеанс первым — лучшие места свободны.</p></div>`;
+}
+
+function joinByCode(code,errorTarget){
+  code=String(code||"").trim().toUpperCase();
+  if(!/^[A-Z0-9]{6}$/.test(code)){
+    if(errorTarget) errorTarget.innerHTML='<div class="error">Код комнаты — 6 символов.</div>';
+    return Promise.resolve(false);
+  }
+  if(!me){ navigate("/login?code="+encodeURIComponent(code)); return Promise.resolve(false); }
+  return api(`/api/rooms/${code}/join`,{method:"POST"}).then(()=>{navigate("/room/"+code);return true}).catch(err=>{if(errorTarget)errorTarget.innerHTML=`<div class="error">${esc(err.message)}</div>`;else toast(err.message);return false});
+}
+
+function openCreateRoomModal(){
+  if(!me){navigate("/login");return}
+  document.querySelector(".modal-backdrop")?.remove();
+  const i=figmaImages();
+  const wrap=document.createElement("div");
+  wrap.className="modal-backdrop";
+  wrap.innerHTML=`<div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+    <div class="modal-head"><div><span class="eyebrow">Новый сеанс</span><h2 class="modal-title" id="modal-title">Создать комнату</h2></div><button class="btn btn-icon" data-close-modal aria-label="Закрыть">${cwIcon("close")}</button></div>
+    <div class="modal-poster"><img src="${i.road}" alt=""><div><span>Фильм можно выбрать сейчас или позже</span><h3>Что будем смотреть?</h3><button class="btn btn-paper" type="button" id="pickMovie">${cwIcon("search")}Выбрать кино</button></div></div>
+    <label class="field"><span>Название комнаты</span><input id="newRoomName" placeholder="Например, Кино после полуночи" maxlength="60"></label>
+    <div class="privacy-options">
+      <button class="selected" type="button" data-privacy="private">${cwIcon("lock")}<span><strong>Только для своих</strong>Вход по приглашению или коду</span><i>${cwIcon("check",15)}</i></button>
+      <button type="button" data-privacy="open">${cwIcon("users")}<span><strong>Открытая комната</strong>Её увидят в общем списке</span><i></i></button>
+    </div>
+    <div id="createRoomErr"></div><div class="modal-actions"><button class="btn btn-ghost" data-close-modal>Отмена</button><button class="btn btn-primary" id="createRoomSubmit">${cwIcon("play")}<span class="btn-label">Создать и войти</span></button></div>
+  </div>`;
+  document.body.appendChild(wrap);
+  const close=()=>wrap.remove();
+  wrap.addEventListener("mousedown",e=>{if(e.target===wrap)close()});
+  wrap.querySelectorAll("[data-close-modal]").forEach(b=>b.addEventListener("click",close));
+  wrap.querySelectorAll("[data-privacy]").forEach(b=>b.addEventListener("click",()=>{
+    wrap.querySelectorAll("[data-privacy]").forEach(x=>{x.classList.remove("selected");x.querySelector("i").innerHTML=""});
+    b.classList.add("selected");b.querySelector("i").innerHTML=cwIcon("check",15);
+  }));
+  wrap.querySelector("#pickMovie")?.addEventListener("click",()=>toast("Кино можно добавить сразу после входа в комнату"));
+  wrap.querySelector("#createRoomSubmit").addEventListener("click",async()=>{
+    const btn=wrap.querySelector("#createRoomSubmit");
+    btn.disabled=true;btn.classList.add("is-loading");btn.innerHTML='<span class="button-loader"></span><span class="btn-label">Создаём…</span>';
+    try{
+      const d=await api("/api/rooms",{method:"POST"});
+      btn.classList.remove("is-loading");btn.classList.add("is-success");btn.innerHTML=`${cwIcon("check")}<span class="btn-label">Готово</span>`;
+      setTimeout(()=>{close();navigate("/room/"+d.room.code)},420);
+    }catch(e){btn.disabled=false;btn.classList.remove("is-loading");btn.innerHTML=`${cwIcon("play")}<span class="btn-label">Создать и войти</span>`;wrap.querySelector("#createRoomErr").innerHTML=`<div class="error">${esc(e.message)}</div>`}
+  });
+}
+
+function openAccountModal(){
+  document.querySelector(".account-modal")?.remove();
+  const wrap=document.createElement("div");
+  wrap.className="modal-backdrop account-modal";
+  wrap.innerHTML=`<div class="modal account-card"><div class="modal-head"><div><span class="eyebrow">Профиль</span><h2 class="modal-title">${esc(me.nickname)}</h2></div><button class="btn btn-icon" data-close-account>${cwIcon("close")}</button></div><p class="account-copy">Уровень ${me.level} · ${esc(me.secretPrefix||me.prefix||"Зритель")}</p><div class="modal-actions"><button class="btn btn-ghost" data-close-account>Закрыть</button><button class="btn btn-secondary" id="logoutAccount">Выйти</button></div></div>`;
+  document.body.appendChild(wrap);
+  const close=()=>wrap.remove();
+  wrap.querySelectorAll("[data-close-account]").forEach(b=>b.onclick=close);
+  wrap.addEventListener("mousedown",e=>{if(e.target===wrap)close()});
+  wrap.querySelector("#logoutAccount").onclick=async()=>{await api("/api/logout",{method:"POST"});me=null;close();navigate("/")};
+}
+
+async function landingPage(){
+  const i=figmaImages();
+  const demos=figmaDemoRooms().slice(0,4);
+  newShell(`<main>
+    <section class="hero"><img class="hero-image" src="${i.hero}" alt="Горный пейзаж в сумерках"><div class="hero-overlay"></div>
+      <div class="container hero-content reveal"><span class="hero-kicker"><i></i> Вечер начинается здесь</span><h1>Кино ближе,<br><em>когда вы вместе</em></h1>
+      <p>Смотрите любимые фильмы синхронно. Обсуждайте, смейтесь и проживайте каждую сцену — даже если между вами тысячи километров.</p>
+      <div class="hero-actions"><button class="btn btn-primary" data-create>${cwIcon("play")}<span class="btn-label">Создать комнату</span></button><a class="btn btn-secondary" href="${me?"/rooms":"/login"}" data-nav>Войти по коду ${cwIcon("arrow")}</a></div></div>
+      <div class="hero-credit">Фото: John Towner / Unsplash</div>
+    </section>
+    <section class="section container"><div class="section-head"><div><span class="eyebrow">Сейчас в эфире</span><h2>К вам можно?</h2></div><a class="btn btn-ghost" href="${me?"/rooms":"/login"}" data-nav>Все комнаты ${cwIcon("arrow")}</a></div>
+      <div class="rooms-grid featured">${demos.map((r,n)=>roomCardHtml(r,n)).join("")}</div></section>
+    <section class="manifesto"><div class="container manifesto-grid"><div class="manifesto-image"><img src="${i.cinema}" alt="Зрители в кинозале"><span>ОДИН ЭКРАН<br>НА ВСЕХ</span></div>
+      <div class="manifesto-copy"><span class="eyebrow">Без расстояний</span><h2>Как в кинотеатре.<br>Только у каждого дома.</h2>
+      <div class="feature-list"><div><b>01</b><span><strong>Кадр в кадр</strong>Пауза, перемотка и продолжение синхронны для всех.</span></div><div><b>02</b><span><strong>Живой разговор</strong>Чат и быстрые реакции рядом, но не мешают просмотру.</span></div><div><b>03</b><span><strong>Только свои</strong>Закройте комнату кодом или позовите новых знакомых.</span></div></div></div></div></section>
+    <section class="club-notes container"><div class="club-note-copy"><span class="eyebrow">Клубные заметки</span><h2>Не просто посмотреть.<br>Запомнить вместе.</h2><p>Профили собирают историю ваших вечеров: фильмы, компании, реакции и редкие знаки отличия. Никаких таблиц — только личная кинохроника.</p></div>
+      <div class="club-collage"><img src="${i.redEye}" alt=""><img src="${i.forest}" alt=""><img src="${i.road}" alt=""><span class="ticket">БИЛЕТ № 0048<br><small>МЕСТО РЯДОМ</small></span></div></section>
+  </main>`);
+}
+
+function shell(content,opts={}){
+  const showHeader=opts.header!==false;
+  const showBottom=opts.bottom!==false && location.pathname!=="/login" && location.pathname!=="/register" && !location.pathname.startsWith("/room/");
+  app.innerHTML=`<div class="app"><div class="page-stage">${showHeader?headerHtml():""}${content}${showBottom?bottomNavHtml():""}</div><div class="page-curtain"></div></div>`;
+  document.querySelectorAll("[data-nav]").forEach(a=>a.addEventListener("click",e=>{e.preventDefault();navigate(a.getAttribute("href"))}));
+  document.querySelectorAll("[data-create]").forEach(b=>b.addEventListener("click",()=>me?openCreateRoomModal():navigate("/login")));
+  document.querySelectorAll("[data-demo-open]").forEach(b=>b.addEventListener("click",()=>navigate(me?"/rooms":"/login")));
+}
+
+function mountCinemaIntro(){}
 function authPage(mode){
-  shell(`<main class="auth"><h1 class="title">${mode==="login"?"Вход":"Регистрация"}</h1>
-    <p class="muted">${mode==="login"?"Войдите в аккаунт":"Создайте аккаунт для комнат и совместного просмотра"}</p>
-    <form id="authform"><div class="field"><label>Никнейм</label><input id="nick" autocomplete="username" maxlength="24" required></div>
-    <div class="field"><label>Пароль</label><input id="pass" type="password" autocomplete="${mode==="login"?"current-password":"new-password"}" minlength="8" required></div>
-    <div id="formerr"></div><button class="primary" style="width:100%">${mode==="login"?"Войти":"Создать аккаунт"}</button></form>
-    <p class="footerhint">${mode==="login"?'Нет аккаунта? <a href="/register" data-nav>Регистрация</a>':'Уже есть аккаунт? <a href="/login" data-nav>Войти</a>'}</p></main>`);
-  document.querySelectorAll("[data-nav]").forEach(a=>a.onclick=e=>{e.preventDefault();navigate(a.getAttribute("href"))});
-  $("#authform").onsubmit=async e=>{e.preventDefault();try{const d=await api(mode==="login"?"/api/login":"/api/register",{method:"POST",body:JSON.stringify({nickname:$("#nick").value,password:$("#pass").value})});me=d.user;navigate("/rooms")}catch(err){$("#formerr").innerHTML=`<div class="error">${esc(err.message)}</div>`}};
+  const i=figmaImages();
+  newShell(`<main class="auth-page"><div class="auth-visual"><img src="${i.redEye}" alt="Кинематографичный портрет в красном свете"><div class="auth-quote"><span>СЕАНС № 1948</span><h2>Истории становятся<br>настоящими, когда<br>ими делятся.</h2></div></div>
+    <div class="auth-form-wrap"><div class="auth-mobile-logo">${logoHtml()}</div><a class="btn btn-ghost auth-back" href="/" data-nav>${cwIcon("back")}На главную</a>
+      <form class="auth-form" id="authform"><span class="eyebrow">${mode==="login"?"С возвращением":"Добро пожаловать"}</span><h1>${mode==="login"?"Продолжим смотреть?":"Займите место"}</h1><p>${mode==="login"?"Войдите в аккаунт или используйте код комнаты.":"Создайте профиль для совместных кинопросмотров."}</p>
+      <div class="auth-tabs"><a class="btn btn-ghost ${mode==="login"?"active":""}" href="/login" data-nav>Вход</a><a class="btn btn-ghost ${mode==="register"?"active":""}" href="/register" data-nav>Регистрация</a></div>
+      <label class="field"><span>Никнейм</span><input id="nick" autocomplete="username" maxlength="24" placeholder="Как вас называть?" required></label>
+      <label class="field"><span>Пароль</span><input id="pass" type="password" autocomplete="${mode==="login"?"current-password":"new-password"}" minlength="8" placeholder="Не менее 8 символов" required></label>
+      <div id="formerr"></div><button class="btn btn-primary full" type="submit"><span class="btn-label">${mode==="login"?"Войти":"Создать аккаунт"}</span>${cwIcon("arrow")}</button>
+      <div class="or"><span>или</span></div><label class="field"><span>Код комнаты</span><input id="authRoomCode" placeholder="Например: KINO24" maxlength="6"></label><button class="btn btn-secondary full" id="authJoin" type="button">Войти по коду</button><div id="joinerr"></div>
+      </form></div></main>`,{header:false,bottom:false});
+  const q=new URLSearchParams(location.search).get("code");if(q)$("#authRoomCode").value=q.toUpperCase();
+  $("#authform").onsubmit=async e=>{e.preventDefault();try{const d=await api(mode==="login"?"/api/login":"/api/register",{method:"POST",body:{nickname:$("#nick").value,password:$("#pass").value}});me=d.user;const code=$("#authRoomCode").value.trim();if(code)await joinByCode(code,$("#joinerr"));else navigate("/rooms")}catch(err){$("#formerr").innerHTML=`<div class="error">${esc(err.message)}</div>`}};
+  $("#authJoin").onclick=()=>{if(me)joinByCode($("#authRoomCode").value,$("#joinerr"));else $("#joinerr").innerHTML='<div class="error">Сначала войдите или создайте аккаунт, затем используйте код комнаты.</div>'};
 }
 async function roomsPage(){
   const d=await api("/api/my-rooms");
-  shell(`<main class="page">
-    <section class="hero hero-v11">
-      <div class="hero-scene" aria-hidden="true"><span class="scene-orb scene-orb-a"></span><span class="scene-orb scene-orb-b"></span><span class="scene-window"></span><span class="scene-sofa"></span><span class="scene-lamp"></span><span class="scene-floor-glow"></span></div>
-      <div class="hero-art" aria-hidden="true">
-        <div class="poster poster-a photo-poster"><img src="/media/hero-kitty.jpg" alt=""><span class="poster-kicker">01</span><div class="poster-shade"></div><div class="poster-copy"><b>Ночной<br>киносеанс</b><small>соберите своих</small></div></div>
-        <div class="poster poster-b photo-poster"><img src="/media/hero-selfie.jpg" alt=""><span class="poster-kicker">02</span><div class="poster-shade"></div><div class="poster-copy"><b>Серия<br>за серией</b><small>пауза только общая</small></div></div>
-        <div class="poster poster-c photo-poster"><img src="/media/meme-ghost.jpg" alt=""><span class="poster-kicker">03</span><div class="poster-shade"></div><div class="poster-copy"><b>Чебурек<br>премьер</b><small>критика после титров</small></div></div>
-      </div>
-      <div class="hero-copy">
-        <div class="eyebrow"><span class="eyebrow-line"></span> КИНО · СЕРИАЛЫ · ДРУЗЬЯ <span class="eyebrow-line"></span></div>
-        <h1 class="hero-title"><span class="hero-line">Смотри.</span><span class="hero-line">Общайся.</span><span class="hero-line hero-line-accent">Одному —<br><strong>преступление.</strong></span></h1>
-        <p class="hero-sub">Создай комнату. Позови своих. И сделайте вид, что сегодня точно досмотрите серию — без «а на какой минуте?» и внезапного исчезновения друга.</p>
-      </div>
-      <div class="hero-rail">
-        <div class="hero-side-note"><span class="status-dot"></span><div><b>Синхрон жив</b><small>пауза, перемотка и паника — общие</small></div></div>
-        <div class="hero-actions"><button id="create" class="primary hero-main-cta"><span>Создать комнату</span><i>→</i></button><button class="secondary hero-secondary-cta" id="scrollRooms"><span>У меня уже есть код</span><i>↓</i></button></div>
-        <div class="hero-rail-note"><span>ОДИН ЭКРАН · ОДНА КОМНАТА</span><small>Один экран. Одна комната. Слишком много мнений.</small></div>
-      </div>
-    </section>
-    <section id="roomsSection">
-      <div class="section-head"><div><h2>Мои комнаты</h2><p class="muted">Там, где вы остановились. Или где кто-то опять нажал паузу.</p></div></div>
-      <div class="card join-card"><form id="joinform" class="row"><input id="joincode" class="join-code-input" placeholder="Введи код комнаты · ABC123" maxlength="6" inputmode="text" autocomplete="off"><button class="secondary">Войти по коду</button></form><div id="joinerr"></div></div>
-      <div class="cw-joke-bar"><span class="joke-spark">✦</span><span>${esc(cwJoke())}</span><button type="button" id="newJoke" title="Ещё шутку">↻</button></div>
-      <div class="cards">${d.rooms.length?d.rooms.map(r=>`<div class="card room-card"><div class="room-glow"></div><div class="room-top"><div><span class="code">${r.code}</span><span class="live-pill">${r.participantCount} онлайн</span></div>${r.ownerId===me.id?`<button class="icon-danger" data-delete="${r.code}" title="Удалить комнату">×</button>`:""}</div><div class="room-name">${r.media?esc(r.media.type==="youtube"?"YouTube":r.media.type==="vk"?"VK Video":"Видео файл"):"Пустая комната"}</div><div class="stat"><span>Статус</span><span>${r.media?"Готова к просмотру":"Ожидает видео"}</span></div><button type="button" class="room-open" data-open="${r.code}"><span>Открыть комнату</span><span>↗</span></button></div>`).join(""):`<div class="empty-state"><div class="empty-icon">CW</div><h3>Здесь пока тихо</h3><p>Создай комнату. Позови друзей. Сделайте вид, что сегодня точно досмотрите серию.</p><button class="primary" id="create2">Создать первую комнату</button></div>`}</div>
-    </section>
-    <section class="creator-home glass-section" id="creatorHome"><div class="creator-home-orb">CW</div><div><div class="eyebrow">CHEBUREKWATCH · BEHIND THE SCENES</div><h2>Создатели</h2><p class="muted">Те, кто однажды решил: «А давайте ещё и синхронизацию починим».</p></div><button id="creatorHomeBtn" class="primary">Открыть список →</button></section>
-    <section class="fun-strip">
-      <div class="fun-card"><span class="strip-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="3"></rect><path d="M8 4v4M16 4v4M3 9h18M8 14h3M13 14h3M8 17h3"></path></svg></span><span><b>Киноночь</b><small>Соберите свою компанию</small></span><em>01</em></div>
-      <div class="fun-card"><span class="strip-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 19V9M12 19V5M19 19v-8"></path><path d="M3 19h18"></path></svg></span><span><b>Серия за серией</b><small>Прогресс превращается в уровни</small></span><em>02</em></div>
-      <div class="fun-card"><span class="strip-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 2.5 5 5.5.8-4 3.9.9 5.5-4.9-2.6-4.9 2.6.9-5.5-4-3.9 5.5-.8L12 3Z"></path></svg></span><span><b>Достижения</b><small>Открывай новые титулы</small></span><em>03</em></div>
-    </section>
-    <section class="cw-archive glass-section" id="cwArchive">
-      <div class="archive-head">
-        <div><div class="eyebrow">CHEBUREK PICTURE HOUSE · ARCHIVE</div><h2>Кадры, которые заслужили отдельный экран</h2><p class="muted">Все фотографии из свежего архива. Мы не знаем, что это за киновселенная, но она явно уже канон.</p></div>
-        <div class="archive-stamp"><b>12</b><span>кадров<br>без цензуры</span></div>
-      </div>
-      <div class="cw-photo-grid">${CW_PHOTOS.map(photoCard).join("")}</div>
-      <div class="archive-foot"><span>PROOF OF CINEMA</span><span>▲ листать не обязательно · достаточно восхищаться</span></div>
-    </section>
+  newShell(`<main class="page container"><div class="browse-top reveal"><div><span class="eyebrow">Живые комнаты</span><h1>Выбирайте, что смотреть</h1><p>Заходите без стука — здесь всегда оставлено место на диване.</p></div><button class="btn btn-primary" data-create>${cwIcon("plus")}<span class="btn-label">Новая комната</span></button></div>
+    <div class="filter-row"><div class="tabs"><button class="btn btn-ghost active" data-filter="all">Все</button><button class="btn btn-ghost" data-filter="friends">Друзья смотрят</button><button class="btn btn-ghost" data-filter="open">Открытые</button><button class="btn btn-ghost" data-filter="classic">Классика</button></div>
+      <label class="search-box">${cwIcon("search")}<input id="roomSearch" placeholder="Найти комнату, фильм или код"></label></div>
+    <div id="roomsGrid" class="rooms-grid browse-grid">${d.rooms.length?d.rooms.map((r,n)=>roomCardHtml(r,n)).join(""):emptyStateHtml()}</div><div id="filterEmpty" hidden>${emptyStateHtml()}</div>
   </main>`);
-  $("#create")?.addEventListener("click", createRoom); $("#create2")?.addEventListener("click", createRoom);
-  $("#scrollRooms")?.addEventListener("click",()=>document.getElementById("roomsSection").scrollIntoView({behavior:"smooth"}));
-  $("#newJoke")?.addEventListener("click",()=>{const b=$("#newJoke");const text=b.parentElement?.querySelector("span:nth-child(2)");if(text){text.textContent=cwJoke();b.animate([{transform:"rotate(0deg)"},{transform:"rotate(180deg)"}],{duration:350,easing:"cubic-bezier(.2,.8,.2,1)"})}});
-  $("#creatorHomeBtn")?.addEventListener("click",()=>openCreatorPanel(null));
-  // Event delegation is more reliable here than binding handlers to every card.
-  // It also keeps the button working after any partial DOM refresh.
-  const roomsSection = $("#roomsSection");
-  roomsSection?.addEventListener("click", async e=>{
-    const openBtn = e.target.closest("[data-open]");
-    if (openBtn) {
-      e.preventDefault();
-      e.stopPropagation();
-      const code = String(openBtn.dataset.open || "").trim().toUpperCase();
-      if (!/^[A-Z0-9]{6}$/.test(code)) return;
-      openBtn.disabled = true;
-      openBtn.classList.add("is-loading");
-      try {
-        await api(`/api/rooms/${code}/join`, {method:"POST"});
-        navigate("/room/"+code);
-      } catch (err) {
-        toast(err.message || "Не удалось открыть комнату");
-        openBtn.disabled = false;
-        openBtn.classList.remove("is-loading");
-      }
-      return;
-    }
-    const deleteBtn = e.target.closest("[data-delete]");
-    if (!deleteBtn) return;
-    e.preventDefault();
-    e.stopPropagation();
-    const code=deleteBtn.dataset.delete;
-    if(!confirm(`Удалить комнату ${code}? Это удалит её сообщения и доступ к комнате.`)) return;
-    try { await api(`/api/rooms/${code}`,{method:"DELETE"}); await roomsPage(); }
-    catch(err) { toast(err.message || "Не удалось удалить комнату"); }
-  });
-  $("#joinform").onsubmit=async e=>{e.preventDefault();try{const code=$("#joincode").value.trim().toUpperCase();await api(`/api/rooms/${code}/join`,{method:"POST"});navigate("/room/"+code)}catch(err){$("#joinerr").innerHTML=`<div class="error">${esc(err.message)}</div>`}};
+  document.querySelectorAll("[data-open]").forEach(b=>b.addEventListener("click",async()=>{b.disabled=true;try{await api(`/api/rooms/${b.dataset.open}/join`,{method:"POST"});navigate("/room/"+b.dataset.open)}catch(e){toast(e.message);b.disabled=false}}));
+  const search=$("#roomSearch");
+  search.addEventListener("input",()=>{const q=search.value.trim().toLowerCase();document.querySelectorAll(".room-card[data-search]").forEach(c=>c.hidden=q&&!c.dataset.search.includes(q))});
+  search.addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();const v=search.value.trim().toUpperCase();if(/^[A-Z0-9]{6}$/.test(v))joinByCode(v)}});
+  document.querySelectorAll("[data-filter]").forEach(b=>b.addEventListener("click",()=>{document.querySelectorAll("[data-filter]").forEach(x=>x.classList.remove("active"));b.classList.add("active");const empty=b.dataset.filter==="friends";$("#roomsGrid").hidden=empty;$("#filterEmpty").hidden=!empty}));
 }
-async function createRoom(){try{const d=await api("/api/rooms",{method:"POST"});navigate("/room/"+d.room.code)}catch(e){alert(e.message)}}
+async function createRoom(){openCreateRoomModal()}
 async function profilePage(){
-  const d=await api("/api/profile"); me=d.user;
-  const next=me.minutesToNext||20, hours=Math.floor(me.watchMinutes/60), mins=me.watchMinutes%60;
-  const unlocked=d.user.achievements.length,totalAch=d.user.availableAchievements.length;
-  const nextTitle=me.nextPrefix?`ур. ${me.nextPrefix.level} · ${me.nextPrefix.name}`:"Максимальный титул";
-  shell(`<main class="page profile-page">
-    <section class="profile-cover"><div class="profile-gridline"></div><div class="profile-orbit orbit-a"></div><div class="profile-orbit orbit-b"></div>
-      <div class="profile-avatar-wrap"><div class="profile-avatar">${esc(me.nickname.slice(0,1).toUpperCase())}</div><span class="online-ring"></span></div>
-      <div class="profile-copy"><div class="eyebrow">ЛИЧНОЕ ДОСЬЕ · CHEBUREKWATCH</div>
-        <div class="profile-title-row"><div><div class="profile-prefix">${esc(me.secretPrefix || me.prefix)}</div><h1>${esc(me.nickname)}</h1></div><div class="level-orb"><strong>${me.level}</strong><span>УР.</span></div></div>
-        <div class="profile-sub">Следующий титул: <b>${esc(nextTitle)}</b></div>
-        <div class="mega-xp"><div class="mega-xp-fill" style="width:${me.progress}%"></div></div>
-        <div class="xp-caption"><span>${Math.round(me.progress)}% прогресса</span><span>${next} мин. до следующего уровня</span></div>
-      </div>
-    </section>
-    <section class="profile-memory">
-      <div class="profile-memory-copy"><div class="eyebrow">PRIVATE SCREENING · MEMORY REEL</div><h2>Твоя история просмотра</h2><p class="muted">Не спрашивай, почему в личном досье лежит пчела. Просто листай дальше.</p></div>
-      <div class="profile-memory-strip">
-        ${CW_PHOTOS.slice(4,8).map((p,i)=>`<figure class="memory-photo memory-${i+1}"><img src="${p.src}" alt="${esc(p.title)}" loading="lazy" decoding="async"><figcaption>${esc(p.title)}</figcaption></figure>`).join("")}
-      </div>
-    </section>
-    <section class="profile-stats">
-      <div class="stat-card"><span class="stat-icon">◷</span><div><small>Время просмотра</small><strong>${hours}ч ${mins}м</strong></div></div>
-      <div class="stat-card"><span class="stat-icon">◆</span><div><small>Текущий уровень</small><strong>${me.level}</strong></div></div>
-      <div class="stat-card"><span class="stat-icon">✦</span><div><small>Достижения</small><strong>${unlocked}<i> / ${totalAch}</i></strong></div></div>
-      <div class="stat-card"><span class="stat-icon">→</span><div><small>Следующий титул</small><strong class="small-stat">${esc(me.nextPrefix?.name||"Максимум")}</strong></div></div>
-    </section>
-    <section class="profile-grid-two">
-      <section class="glass-section"><div class="section-title-row"><div><div class="eyebrow">COLLECTION</div><h2>Достижения</h2></div><span class="counter">${unlocked}/${totalAch}</span></div>
-        <div class="achievement-grid">${d.user.availableAchievements.map(a=>{const on=d.user.achievements.some(x=>x.id===a.id);return `<article class="achievement ${on?"unlocked":"locked"}"><div class="achievement-shine"></div><div class="achievement-icon">${a.icon}</div><div class="achievement-body"><b>${esc(a.title)}</b><p>${esc(a.desc)}</p></div><span class="achievement-state">${on?"✓":"○"}</span></article>`}).join("")}</div>
-      </section>
-      <section class="glass-section"><div class="section-title-row"><div><div class="eyebrow">RANK LADDER</div><h2>Титулы</h2></div></div>
-        <div class="title-ladder">${[[1,"Лошара"],[5,"Нормис"],[10,"Киноман"],[20,"Запойный зритель"],[30,"Культовый зритель"],[50,"Легенда дивана"],[75,"Повелитель запоя"],[100,"Мифический чебурек"]].map(([lvl,name])=>`<div class="title-step ${me.level>=lvl?"active":""} ${me.level===lvl?"current":""}"><span class="title-line"></span><span class="title-level">${lvl}</span><div><b>${name}</b><small>${me.level>=lvl?"Открыт":"Закрыт"}</small></div>${me.level===lvl?'<span class="current-pill">СЕЙЧАС</span>':""}</div>`).join("")}</div>
-      </section>
-    </section>
-    <div class="profile-tip"><span>✦</span><div><b>Как качаться?</b><p>Каждые 20 минут реального воспроизведения в комнате дают +1 уровень. Чем дольше смотрите вместе — тем выше ваш титул.</p></div></div>
-  </main>`);
+  const d=await api("/api/profile");me=d.user;
+  const i=figmaImages(), movies=figmaMovies();
+  const next=me.minutesToNext||20,hours=Math.floor((me.watchMinutes||0)/60),unlocked=d.user.achievements.length,total=d.user.availableAchievements.length;
+  const firstAchievements=d.user.availableAchievements.slice(0,3);
+  newShell(`<main class="profile-page"><section class="profile-hero"><img src="${i.chairs}" alt=""><div class="profile-shade"></div><div class="container profile-info">${avatarHtml(me.nickname,"lg")}<div class="profile-name"><span class="eyebrow">Профиль зрителя</span><h1>${esc(me.nickname)}</h1><p>@${esc(me.nickname.toLowerCase().replace(/\s+/g,""))} · ${esc(me.secretPrefix||me.prefix||"зритель")}</p></div><button class="btn btn-secondary" id="profileSettings">Настроить профиль</button></div></section>
+    <div class="container profile-content"><section class="level-card"><div class="level-number">${String(me.level).padStart(2,"0")}</div><div class="level-copy"><span>УРОВЕНЬ</span><h3>${esc(me.secretPrefix||me.prefix||"Зритель")}</h3><div class="progress"><i style="width:${Math.max(0,Math.min(100,Number(me.progress||0)))}%"></i></div><p>${next} мин. до следующего уровня</p></div><div class="stats"><div><strong>${Math.max(0,Math.round((me.watchMinutes||0)/120))}</strong><span>Фильмов</span></div><div><strong>${hours}</strong><span>Часов</span></div><div><strong>${unlocked}</strong><span>Наград</span></div></div></section>
+    <section class="profile-section"><div class="section-head"><div><span class="eyebrow">Последние сеансы</span><h2>История просмотров</h2></div><button class="btn btn-ghost">Вся история ${cwIcon("arrow")}</button></div><div class="history-grid">${figmaDemoRooms().slice(0,4).map((r,n)=>`<article class="history-card"><img src="${r.image}" alt=""><div><span>Досмотрено ${n===1?"на 74%":"полностью"}</span><h3>${esc(r.film)}</h3><p>В комнате «${esc(r.title)}»</p></div></article>`).join("")}</div></section>
+    <section class="profile-section"><div class="section-head"><div><span class="eyebrow">Коллекция</span><h2>Знаки отличия</h2></div></div><div class="achievements">${firstAchievements.length?firstAchievements.map((a,n)=>`<div><b>${["35","12","∞"][n]||"•"}</b><span><strong>${esc(a.title)}</strong>${esc(a.desc)}</span></div>`).join(""):`<div><b>○</b><span><strong>Первый сеанс</strong>Знаки появятся после совместных просмотров</span></div>`}</div></section>
+    <section class="profile-section favorites-section"><div class="section-head"><div><span class="eyebrow">Полка ${esc(me.nickname)}</span><h2>Любимое кино</h2></div><span class="shelf-note">Пыль протирается автоматически</span></div><div class="favorite-shelf">${movies.map((m,n)=>`<article><span>0${n+1}</span><img src="${m.image}" alt=""><div><h3>${m.title}</h3><p>${m.year} · В любимом</p></div></article>`).join("")}</div></section>
+    </div></main>`);
+  $("#profileSettings").onclick=openAccountModal;
 }
 function playerHtml(media){
-  if(!media) return `<div class="emptyvideo"><img src="/media/meme-bees.jpg" alt="" loading="lazy"><div class="emptyvideo-shade"></div><div class="emptyvideo-copy"><span>PRIVATE SCREENING</span><b>Экран ждёт главного героя.</b><small>Добавьте YouTube, VK Video или прямую ссылку на видео. Пчёлы уже заняли первый ряд.</small></div></div>`;
-  if(media.type==="youtube") return `<div class="player-frame yt-stage" id="yt"><div class="player-loading">Подключаем видео…</div></div>`;
-  if(media.type==="vk") return `<iframe class="player-frame" id="vkframe" allow="autoplay; encrypted-media; fullscreen; picture-in-picture" allowfullscreen src="${esc(media.url)}"></iframe>`;
-  return `<video class="player-frame" id="htmlvideo" playsinline preload="metadata" src="${esc(media.url)}"></video>`;
+  if(!media)return `<div class="emptyvideo"><img src="${figmaImages().mountain}" alt=""><div class="emptyvideo-shade"></div><div class="emptyvideo-copy"><span>СЕЙЧАС СМОТРИМ</span><b>Экран ждёт фильм</b><small>Нажмите «Сменить кино» и вставьте ссылку YouTube, VK Video или прямой файл.</small></div></div>`;
+  if(media.type==="youtube")return `<div class="player-frame yt-stage" id="yt"><div class="player-loading">Подключаем видео…</div></div>`;
+  if(media.type==="vk")return `<iframe class="player-frame" id="vkframe" allow="autoplay; encrypted-media; fullscreen; picture-in-picture" allowfullscreen src="${esc(media.url)}"></iframe>`;
+  return `<video class="player-frame" id="htmlvideo" playsinline preload="metadata" controls src="${esc(media.url)}"></video>`;
 }
 async function roomPage(code){
-  try {
-    const d=await api(`/api/rooms/${encodeURIComponent(code)}`); room=d.room;
-    shell(`<main class="page room-page"><div class="room-header"><div><div class="eyebrow">PRIVATE WATCH ROOM · <span class="live-word">LIVE</span></div><h1 class="title">Комната <span class="code">${room.code}</span></h1><p class="muted small">Смотрим вместе. Стыдно будет выключить первым.</p></div><div class="room-header-joke">${esc(cwJoke())}</div><div class="room-actions"><button id="invite" class="outline-btn">↗ <span>Пригласить</span></button><button id="creatorBtn" class="outline-btn creator-btn">♛ <span>Создатель</span></button>${room.ownerId===me.id?`<button id="deleteRoom" class="danger-outline">⌫ <span>Удалить</span></button>`:""}</div></div>
-    <div class="roomlayout mobile-resizable ${room.media?"has-media":"needs-media"}" style="--mobile-split:50%"><section class="panel"><div class="video video-shell" id="videobox">${playerHtml(room.media)}<div class="player-overlay" id="playerOverlay"><button type="button" class="player-chat-toggle" id="playerChatToggle"><span class="player-glyph">CHAT</span></button><button type="button" class="player-fullscreen" id="playerFullscreen"><span class="player-glyph">FULL</span></button><div class="overlay-chat" id="overlayChat"><div class="overlay-head"><b>Чат</b><button id="overlayClose">×</button></div><div class="overlay-messages" id="overlayMessages"></div><form id="overlayForm" autocomplete="off"><input id="overlayInput" maxlength="500" placeholder="Написать сообщение…" autocomplete="off"><button type="submit">➤</button></form></div></div></div><div class="toolbar">
-      <form id="mediaform" class="mediaform"><input id="mediaurl" placeholder="YouTube / VK / прямая ссылка" required><button class="primary"><span class="desktop-add">Добавить видео</span><span class="mobile-add">Подкинуть кино</span></button></form>
-      <div id="mediaerr"></div>
-      <button type="button" class="mobile-media-toggle" id="mobileMediaToggle"><span class="mobile-media-plus">＋</span><span>Сменить кино</span></button>
-      ${room.media?`<div class="footerhint">Источник: <a href="${esc(room.media.sourceUrl)}" target="_blank" rel="noopener noreferrer">${esc(room.media.sourceUrl)}</a></div>`:""}
-    </div></section><div class="mobile-splitter" id="mobileSplitter" role="separator" aria-label="Изменить размер видео и чата" aria-orientation="horizontal"><span></span></div>
-    <aside class="panel side"><div class="participants"><h3>Участники</h3><div id="people">${peopleHtml(room.users)}</div></div>
-      <div class="chat"><div class="chat-headline"><div><span class="chat-live-dot"></span><h3>Чат</h3></div><small>молчать воспрещается</small></div><div class="messages" id="messages"></div><div class="reaction-picker"><button type="button" data-chat-reaction="heart"><span class="reaction-glyph">♥</span></button><button type="button" data-chat-reaction="lol"><span class="reaction-glyph">LOL</span></button><button type="button" data-chat-reaction="fire"><span class="reaction-glyph">✦</span></button><button type="button" data-chat-reaction="wow"><span class="reaction-glyph">!</span></button><button type="button" data-chat-reaction="rip"><span class="reaction-glyph">☟</span></button><button type="button" data-chat-reaction="clap"><span class="reaction-glyph">//</span></button><button type="button" data-chat-reaction="skull"><span class="reaction-glyph">†</span></button><button type="button" data-chat-reaction="pop"><span class="reaction-glyph">•••</span></button></div><form id="chatform" class="chatform" autocomplete="off"><input id="chatinput" class="chatinput" maxlength="500" placeholder="Написать сообщение…" autocomplete="off"><button type="submit" class="secondary">→</button></form></div>
-    </aside></div></main>`);
+  try{
+    const d=await api(`/api/rooms/${encodeURIComponent(code)}`);room=d.room;
+    const people=room.users||[], movies=figmaMovies(), label=room.media?(room.media.type==="youtube"?"YouTube":room.media.type==="vk"?"VK Video":"Видео"):"Фильм не выбран";
+    newShell(`<main class="watch-page"><div class="watch-header container"><a class="btn btn-ghost" href="/rooms" data-nav>${cwIcon("back")}<span>Комнаты</span></a><div class="room-title"><span class="live-dot"></span><div><h3>Ночной экспресс</h3><span>Комната ${esc(room.code)} · ${people.length} зрителей</span></div></div><div class="participant-stack">${people.slice(0,3).map(u=>avatarHtml(u.nickname)).join("")}${people.length>3?`<span>+${people.length-3}</span>`:""}</div></div>
+      <div class="watch-layout container roomlayout ${room.media?"has-media":"needs-media"}"><section class="player-column"><div class="player video-shell" id="videobox">${newPlayerHtml(room.media)}<div class="movie-label"><span>СЕЙЧАС СМОТРИМ</span><strong>${esc(label)}</strong></div><div class="player-overlay" id="playerOverlay"><button type="button" class="player-chat-toggle" id="playerChatToggle">${cwIcon("chat")}</button><button type="button" class="player-fullscreen" id="playerFullscreen">${cwIcon("expand")}</button><div class="overlay-chat" id="overlayChat"><div class="overlay-head"><b>Чат</b><button id="overlayClose">×</button></div><div class="overlay-messages" id="overlayMessages"></div><form id="overlayForm"><input id="overlayInput" maxlength="500" placeholder="Написать сообщение…"><button type="submit">${cwIcon("send",17)}</button></form></div></div></div>
+      <div class="player-controls"><button class="btn btn-icon" id="seekBack" aria-label="Назад на 10 секунд">${cwIcon("back")}</button><button class="btn btn-icon" id="playerToggle" aria-label="Воспроизвести">${cwIcon(room.playing?"pause":"play")}</button><div class="timeline" id="fakeTimeline"><i></i><span></span></div><span class="time" id="playerTime">совместный просмотр</span><button class="btn btn-icon" aria-label="Громкость">${cwIcon("sound")}</button><button class="btn btn-icon" id="playerFullscreenBottom" aria-label="На весь экран">${cwIcon("expand")}</button></div>
+      <div class="under-player"><div><h3>${esc(label)}</h3><span>Киноклуб «Ночной экспресс» · код ${esc(room.code)}</span></div><div class="reaction-row"><button class="btn btn-secondary" data-room-reaction="♥">${cwIcon("heart")}12</button><button class="btn btn-secondary" data-room-reaction="ХА">${cwIcon("smile")}8</button><button class="btn btn-primary" id="movieSelectorToggle">${cwIcon("film")}<span class="btn-label">Сменить кино</span></button></div></div>
+      <div class="movie-selector" id="movieSelector" hidden><div class="selector-head"><div><span class="eyebrow">Следующий кадр</span><h3>Выберите кино</h3></div><button class="btn btn-icon" id="movieSelectorClose">${cwIcon("close")}</button></div><div class="movie-options">${movies.map(m=>`<button type="button" data-movie-hint="${esc(m.title)}"><img src="${m.image}" alt=""><span><strong>${m.title}</strong><small>${m.year}</small></span></button>`).join("")}</div><p class="selector-note">Совет киномеханика: вставьте ссылку — смена произойдёт одновременно у всех.</p><form id="mediaform" class="mediaform"><input id="mediaurl" placeholder="YouTube / VK / прямая ссылка" required><button class="btn btn-primary">${cwIcon("play")}<span class="btn-label">Поставить кино</span></button></form><div id="mediaerr"></div></div>
+      </section>
+      <aside class="chat-panel"><div class="chat-head"><div><h3>Чат</h3><span>${people.length} в комнате</span></div><div class="chat-head-actions"><button class="btn btn-ghost" id="invite">Пригласить</button><button class="btn btn-icon" id="peopleToggle" aria-label="Участники">${cwIcon("users")}</button></div></div>
+      <div class="participants-popover" id="peoplePopover" hidden><div id="people">${newPeopleHtml(people)}</div>${room.ownerId===me.id?`<button id="deleteRoom" class="btn btn-ghost danger-text">Удалить комнату</button>`:""}<button id="creatorBtn" class="btn btn-ghost">Создатель</button></div>
+      <div class="messages" id="messages"></div><div class="reaction-picker"><button type="button" data-chat-reaction="♥">♥</button><button type="button" data-chat-reaction="😂">😂</button><button type="button" data-chat-reaction="🔥">🔥</button><button type="button" data-chat-reaction="😮">😮</button></div><form id="chatform" class="chat-input"><input id="chatinput" maxlength="500" placeholder="Написать сообщение..."><button class="btn btn-icon" type="submit" aria-label="Отправить">${cwIcon("send")}</button></form></aside></div>
+    </main>`,{bottom:false});
     bindRoom(code);
-  } catch(e){ shell(`<main class="page"><div class="error">${esc(e.message)}</div><a href="/rooms" data-nav>Вернуться к комнатам</a></main>`); document.querySelectorAll("[data-nav]").forEach(a=>a.onclick=x=>{x.preventDefault();navigate("/rooms")}); }
+    $("#peopleToggle").onclick=()=>{$("#peoplePopover").hidden=!$("#peoplePopover").hidden};
+    const selector=$("#movieSelector"),toggle=$("#movieSelectorToggle");
+    toggle.onclick=()=>{selector.hidden=!selector.hidden;toggle.classList.toggle("active",!selector.hidden)};
+    $("#movieSelectorClose").onclick=()=>{selector.hidden=true;toggle.classList.remove("active")};
+    document.querySelectorAll("[data-movie-hint]").forEach(b=>b.onclick=()=>{toast(`Вставьте ссылку на «${b.dataset.movieHint}» или любой другой фильм`);$("#mediaurl").focus()});
+    document.querySelectorAll("[data-room-reaction]").forEach(b=>b.onclick=()=>{const f=document.createElement("span");f.className="floating-reaction";f.textContent=b.dataset.roomReaction;$("#videobox").appendChild(f);setTimeout(()=>f.remove(),1150)});
+    $("#playerFullscreenBottom").onclick=()=>$("#playerFullscreen")?.click();
+    $("#playerToggle").onclick=()=>{const playing=!room.playing;room.playing=playing;try{if(player?.playVideo)playing?player.playVideo():player.pauseVideo();else if(vkPlayer?.play)playing?vkPlayer.play():vkPlayer.pause();else if(localVideo)playing?localVideo.play().catch(()=>{}):localVideo.pause()}catch{}sendState(playing,getPosition(),playing?"play":"pause");$("#playerToggle").innerHTML=cwIcon(playing?"pause":"play")};
+    $("#seekBack").onclick=()=>{const p=Math.max(0,getPosition()-10);applyPosition(p);sendState(!!room.playing,p,"seek")};
+  }catch(e){newShell(`<main class="page container"><div class="error">${esc(e.message)}</div><a class="btn btn-secondary" href="/rooms" data-nav>Вернуться к комнатам</a></main>`)}
 }
-function peopleHtml(users){return users.length?users.map(u=>`<div class="person"><span class="dot"></span><div><div>${esc(u.nickname)}</div><div class="level"><span class="prefix-mini">${esc(u.prefix||"Лошара")}</span> · ур. ${u.level}</div></div>${u.id===me.id?'<span class="level">(вы)</span>':""}</div>`).join(""):`<span class="muted small">Никого онлайн</span>`}
+function peopleHtml(users){
+  return users.length?users.map(u=>`<div class="person">${avatarHtml(u.nickname,"sm")}<div><div>${esc(u.nickname)}</div><div class="level">${esc(u.secretPrefix||u.prefix||"Зритель")} · ур. ${u.level}</div></div>${u.id===me.id?'<span class="level">(вы)</span>':""}</div>`).join(""):`<span class="muted small">Никого онлайн</span>`;
+}
 async function bindRoom(code){
   const inviteUrl=location.origin+"/room/"+code;
   $("#invite").onclick=async()=>{try{await navigator.clipboard.writeText(inviteUrl);const b=$("#invite");b.innerHTML="✓ <span>Скопировано</span>";setTimeout(()=>b.innerHTML="↗ <span>Пригласить</span>",1500)}catch{prompt("Ссылка на комнату",inviteUrl)}};
@@ -357,8 +458,10 @@ function initMobileRoomSplit(){
   splitter.addEventListener("lostpointercapture",stop);
 }
 function toast(message){
-  let t=document.querySelector(".cw-toast"); if(!t){t=document.createElement("div");t.className="cw-toast";document.body.appendChild(t)}
-  t.textContent=message; t.classList.add("show"); clearTimeout(t._t); t._t=setTimeout(()=>t.classList.remove("show"),2600);
+  let t=document.querySelector(".cw-toast");
+  if(!t){t=document.createElement("div");t.className="toast cw-toast";t.setAttribute("role","status");document.body.appendChild(t)}
+  t.innerHTML=`<span>${cwIcon("check",15)}</span><div><strong>${esc(message)}</strong><small>Всё идёт по плану</small></div>`;
+  t.classList.remove("show");void t.offsetWidth;t.classList.add("show");clearTimeout(t._t);t._t=setTimeout(()=>{t.classList.remove("show");setTimeout(()=>t.remove(),320)},2700);
 }
 function openCreatorPanel(code){
   document.querySelector(".creator-modal")?.remove();
@@ -380,7 +483,13 @@ function openCreatorPanel(code){
 
 function renderMessages(ms){const box=$("#messages");if(!box)return;box.innerHTML="";ms.forEach(appendMessage);syncOverlayMessages()}
 function reactionHtml(m){const r=m.reactions||{};return `<div class="msg-reactions">${Object.entries(r).map(([e,ids])=>ids.length?`<button class="reaction-pill ${ids.includes(me.id)?"mine":""}" data-mid="${m.id}" data-reaction="${e}">${e} <span>${ids.length}</span></button>`:"").join("")}<button class="add-reaction" data-mid="${m.id}">＋</button></div>`}
-function appendMessage(m){const box=$("#messages");if(!box)return;const div=document.createElement("div");div.className="msg";div.dataset.mid=m.id;div.innerHTML=`<div class="msghead">${esc(m.nickname)} · ${new Date(m.createdAt).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"})}</div><div class="msgtext">${esc(m.text)}</div>${reactionHtml(m)}`;box.appendChild(div);bindReactionButtons(div);box.scrollTop=box.scrollHeight;syncOverlayMessages()}
+function appendMessage(m){
+  const box=$("#messages");if(!box)return;
+  const div=document.createElement("div");div.className="message msg";div.dataset.mid=m.id;
+  const name=esc(m.nickname),time=new Date(m.createdAt).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"});
+  div.innerHTML=`${avatarHtml(m.nickname,"sm")}<div><div class="message-meta"><strong>${name}</strong><span>${time}</span></div><p class="msgtext">${esc(m.text)}</p>${reactionHtml(m)}</div>`;
+  box.appendChild(div);bindReactionButtons(div);box.scrollTop=box.scrollHeight;syncOverlayMessages();
+}
 function bindReactionButtons(scope){scope.querySelectorAll(".reaction-pill").forEach(b=>b.onclick=()=>toggleReaction(b.dataset.mid,b.dataset.reaction));scope.querySelectorAll(".add-reaction").forEach(b=>b.onclick=()=>openReactionMenu(b.dataset.mid,b))}
 function openReactionMenu(mid,anchor){document.querySelector(".reaction-menu")?.remove();const menu=document.createElement("div");menu.className="reaction-menu";["❤️","😂","🔥","😮","😭","👏","💀","🍿","👍","🥰","😡"].forEach(e=>{const b=document.createElement("button");b.textContent=e;b.onclick=()=>{toggleReaction(mid,e);menu.remove()};menu.appendChild(b)});anchor.parentElement.appendChild(menu)}
 async function toggleReaction(mid,emoji){
@@ -403,41 +512,24 @@ function updateMessageReactions(data){
 }
 function syncOverlayMessages(){const src=$("#messages"),dst=$("#overlayMessages");if(!src||!dst)return;dst.innerHTML=src.innerHTML;dst.querySelectorAll(".reaction-pill,.add-reaction").forEach(b=>{if(b.classList.contains("add-reaction"))b.onclick=()=>openReactionMenu(b.dataset.mid,b);else b.onclick=()=>toggleReaction(b.dataset.mid,b.dataset.reaction)});dst.scrollTop=dst.scrollHeight}
 function mountMedia(){
-  player=null; vkPlayer=null; localVideo=null; lastYTPosition=null; lastVKPosition=null; lastAppliedSeq=0; remoteApplyUntil=0;
-  const box=$("#videobox"); if(!box)return; const current=room.media;
-  const layout=document.querySelector(".roomlayout.mobile-resizable");
-  layout?.classList.toggle("has-media",!!current);
-  layout?.classList.toggle("needs-media",!current);
-  layout?.classList.remove("media-editor-open");
-  const mediaToggle=$("#mobileMediaToggle");
-  mediaToggle?.addEventListener("click",()=>layout?.classList.toggle("media-editor-open"));
-  box.innerHTML=playerHtml(current)+`<div class="player-overlay" id="playerOverlay"><button type="button" class="player-chat-toggle" id="playerChatToggle"><span class="player-glyph">CHAT</span></button><button type="button" class="player-fullscreen" id="playerFullscreen"><span class="player-glyph">FULL</span></button><div class="overlay-chat" id="overlayChat"><div class="overlay-head"><b>Чат</b><button id="overlayClose">×</button></div><div class="overlay-messages" id="overlayMessages"></div><form id="overlayForm" autocomplete="off"><input id="overlayInput" maxlength="500" placeholder="Написать сообщение…" autocomplete="off"><button type="submit">➤</button></form></div></div>`;
+  player=null;vkPlayer=null;localVideo=null;lastYTPosition=null;lastVKPosition=null;lastAppliedSeq=0;remoteApplyUntil=0;
+  const box=$("#videobox");if(!box)return;const current=room.media;
+  const label=current?(current.type==="youtube"?"YouTube":current.type==="vk"?"VK Video":"Видео"):"Фильм не выбран";
+  box.innerHTML=newPlayerHtml(current)+`<div class="movie-label"><span>СЕЙЧАС СМОТРИМ</span><strong>${esc(label)}</strong></div><div class="player-overlay" id="playerOverlay"><button type="button" class="player-chat-toggle" id="playerChatToggle">${cwIcon("chat")}</button><button type="button" class="player-fullscreen" id="playerFullscreen">${cwIcon("expand")}</button><div class="overlay-chat" id="overlayChat"><div class="overlay-head"><b>Чат</b><button id="overlayClose">×</button></div><div class="overlay-messages" id="overlayMessages"></div><form id="overlayForm"><input id="overlayInput" maxlength="500" placeholder="Написать сообщение…"><button type="submit">${cwIcon("send",17)}</button></form></div></div>`;
   setupPlayerOverlay();
   if(!current)return;
   if(current.type==="youtube"){
-    window.onYouTubeIframeAPIReady=()=>{ if(room?.media?.type==="youtube") initYT(); };
-    loadYouTubeAPI().then(ok=>{
-      if(ok) initYT();
-      else {
-        const host=$("#yt");
-        if(host) host.innerHTML='<div class="player-error"><b>YouTube сейчас недоступен</b><small>Плеер не загрузился. Сам CheburekWatch работает — попробуйте VK Video или прямую ссылку на файл.</small></div>';
-      }
-    });
+    window.onYouTubeIframeAPIReady=()=>{if(room?.media?.type==="youtube")initYT()};
+    loadYouTubeAPI().then(ok=>{if(ok)initYT();else{const host=$("#yt");if(host)host.innerHTML='<div class="player-error"><b>YouTube сейчас недоступен</b><small>Попробуйте VK Video или прямую ссылку.</small></div>'}});
   }
   if(current.type==="vk"){
-    loadVKAPI().then(ok=>{
-      if(ok) initVK();
-      else {
-        const host=$("#vkframe")?.parentElement;
-        if(host) host.innerHTML='<div class="player-error"><b>VK Video не загрузил API</b><small>Проверьте соединение и попробуйте открыть комнату ещё раз.</small></div>';
-      }
-    });
+    loadVKAPI().then(ok=>{if(ok)initVK();else{const host=$("#vkframe")?.parentElement;if(host)host.innerHTML='<div class="player-error"><b>VK Video не загрузился</b><small>Проверьте соединение и попробуйте ещё раз.</small></div>'}});
   }
   if(current.type==="direct"){
     localVideo=$("#htmlvideo");
-    localVideo.addEventListener("play",()=>{if(!suppress && Date.now()>remoteApplyUntil)sendState(true,localVideo.currentTime,"play")});
-    localVideo.addEventListener("pause",()=>{if(!suppress && Date.now()>remoteApplyUntil)sendState(false,localVideo.currentTime,"pause")});
-    localVideo.addEventListener("seeked",()=>{if(!suppress && Date.now()>remoteApplyUntil)sendState(!localVideo.paused,localVideo.currentTime,"seek")});
+    localVideo.addEventListener("play",()=>{if(!suppress&&Date.now()>remoteApplyUntil)sendState(true,localVideo.currentTime,"play")});
+    localVideo.addEventListener("pause",()=>{if(!suppress&&Date.now()>remoteApplyUntil)sendState(false,localVideo.currentTime,"pause")});
+    localVideo.addEventListener("seeked",()=>{if(!suppress&&Date.now()>remoteApplyUntil)sendState(!localVideo.paused,localVideo.currentTime,"seek")});
     localVideo.addEventListener("loadedmetadata",()=>applyRemoteState(room));
   }
 }
@@ -557,34 +649,28 @@ function applyRemoteState(st){
 }
 
 async function render(){
-  if(eventSource){eventSource.close();eventSource=null} clearInterval(window.__cwHeartbeat); clearInterval(window.__cwMessageRefresh); clearInterval(window.__ytSeekWatch);
+  if(eventSource){eventSource.close();eventSource=null}
+  clearInterval(window.__cwHeartbeat);clearInterval(window.__cwMessageRefresh);clearInterval(window.__ytSeekWatch);
   const path=location.pathname;
-  if(!me && path!="/login" && path!="/register"){navigate("/login");return}
-  if(path==="/login"){authPage("login");return}
-  if(path==="/register"){authPage("register");return}
-  if(path==="/rooms"||path==="/"){roomsPage();return}
-  if(path==="/profile"){profilePage();return}
-  const m=path.match(/^\/room\/([A-Za-z0-9]+)$/);
-  if(m){await roomPage(m[1].toUpperCase());return}
-  const fallback = me ? "/rooms" : "/login";
-  if (location.pathname !== fallback) {
-    history.replaceState({}, "", fallback);
-    render();
-  }
+  if(path==="/"){await landingPage();return}
+  if(path==="/login"){newAuthPage("login");return}
+  if(path==="/register"){newAuthPage("register");return}
+  if(!me){history.replaceState({},"","/login"+location.search);newAuthPage("login");return}
+  if(path==="/rooms"){await newRoomsPage();return}
+  if(path==="/profile"){await newProfilePage();return}
+  const m=path.match(/^\/room\/([A-Za-z0-9]+)$/);if(m){await newRoomPage(m[1].toUpperCase());return}
+  history.replaceState({},"",me?"/rooms":"/");await newRender();
 }
-
 function initCinematicIntro(){
-  if(document.querySelector(".cw-intro"))return;
+  if(document.querySelector(".intro"))return;
   const reduced=window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
   const returning=sessionStorage.getItem("cw-seen-intro");
-  const intro=document.createElement("div");
-  intro.className="cw-intro";
-  intro.setAttribute("aria-label","CheburekWatch загружается");
-  intro.innerHTML='<div class="cw-intro-ambient"></div><div class="cw-intro-grain"></div><div class="cw-intro-logo"><div class="cw-intro-mark">Ч</div><div class="cw-intro-name">CHEBUREK<b>WATCH</b></div><div class="cw-intro-sub">совместный кинопросмотр</div></div><div class="cw-intro-line"></div>';
+  const intro=document.createElement("div");intro.className="intro";intro.setAttribute("aria-label","CheburekWatch загружается");
+  intro.innerHTML=`<div class="intro-ambient"></div><div class="intro-grain"></div><div class="intro-logo">${logoHtml()}<span>Совместный кинопросмотр</span><i></i></div><div class="intro-progress"><i></i></div>`;
   document.body.appendChild(intro);
-  const hold=reduced?120:(returning?650:1850);
+  const hold=reduced?100:(returning?850:2100);
   setTimeout(()=>intro.classList.add("is-leaving"),hold);
-  setTimeout(()=>{intro.remove();sessionStorage.setItem("cw-seen-intro","1")},hold+(reduced?40:700));
+  setTimeout(()=>{intro.remove();sessionStorage.setItem("cw-seen-intro","1")},hold+(reduced?30:650));
 }
 
-(async()=>{initCinematicIntro();try{me=(await api("/api/me")).user}catch{};render()})();
+(async()=>{initCinematicIntro();try{me=(await api("/api/me")).user}catch{};await render()})();
