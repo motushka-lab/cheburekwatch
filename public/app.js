@@ -474,17 +474,17 @@ function vkSearchPanelHtml(id){
       <button type="button" data-media-tab="anime">АНИМЕ</button>
     </div>
     <div data-media-pane="vk">
-      <div class="vk-search-head"><div><span class="eyebrow">VK VIDEO</span><h3>НАЙТИ КИНО СРАЗУ</h3></div><span class="vk-search-mark">VK</span></div>
-      <form class="vk-search-form" data-vk-search-form>
-        <label class="vk-search-box">${cwIcon("search",18)}<input data-vk-query maxlength="120" autocomplete="off" placeholder="Название фильма, сериала или видео"></label>
-        <button class="btn btn-primary" type="submit"><span class="btn-label">ИСКАТЬ</span></button>
+      <div class="vk-search-head"><div><span class="eyebrow">VK VIDEO</span><h3>ПОИСК БЕЗ API</h3></div><span class="vk-search-mark">VK</span></div>
+      <div class="vk-public-note">VK запретил <code>video.search</code> для текущего типа профиля приложения. Поэтому поиск открывается на самом VK Video, а найденную ссылку можно сразу вставить сюда.</div>
+      <form class="vk-public-search" data-vk-public-search>
+        <label class="vk-search-box">${cwIcon("search",18)}<input data-vk-public-query maxlength="120" autocomplete="off" placeholder="Название фильма или видео"></label>
+        <button class="btn btn-primary" type="submit"><span class="btn-label">ОТКРЫТЬ VK VIDEO</span></button>
       </form>
-      <div class="vk-connect-gate" data-vk-gate hidden>
-        <div class="vk-connect-copy"><b>Подключите VK ID</b><span>Поиск выполняется из вашего браузера, чтобы VK не ругался на другой IP.</span></div>
-        <div class="vk-onetap-slot" data-vk-onetap></div>
-      </div>
-      <div class="vk-search-status" data-vk-status>Введите название — покажу результаты из VK Video.</div>
-      <div class="vk-search-results" data-vk-results></div>
+      <form class="vk-link-pick" data-vk-link-form>
+        <label class="vk-search-box">${cwIcon("film",18)}<input data-vk-link maxlength="800" autocomplete="off" placeholder="Вставьте ссылку vkvideo.ru или vk.com/video…"></label>
+        <button class="btn btn-secondary" type="submit"><span class="btn-label">ВЫБРАТЬ</span></button>
+      </form>
+      <div class="vk-search-status" data-vk-status>Сначала найдите ролик на VK Video, затем вставьте его ссылку.</div>
       <div class="vk-search-selected" data-vk-selected hidden></div>
     </div>
     <div data-media-pane="anime" hidden>
@@ -493,7 +493,7 @@ function vkSearchPanelHtml(id){
         <label class="vk-search-box">${cwIcon("search",18)}<input data-anime-query maxlength="120" autocomplete="off" placeholder="JoJo, Frieren, Attack on Titan…"></label>
         <button class="btn btn-primary" type="submit"><span class="btn-label">ИСКАТЬ</span></button>
       </form>
-      <div class="anime-search-status" data-anime-status>Поиск по каталогу AniList. Сам AniList не хранит серии — только каталог и официальные ссылки.</div>
+      <div class="anime-search-status" data-anime-status>Поиск по каталогу AniList. Здесь можно выбрать тайтл и посмотреть доступные официальные источники.</div>
       <div class="anime-search-results" data-anime-results></div>
       <div class="anime-selected" data-anime-selected hidden></div>
     </div>
@@ -502,60 +502,35 @@ function vkSearchPanelHtml(id){
 function bindVkSearch(root,{onPick,onAnime}={}){
   if(!root || root.dataset.bound==="1")return;
   root.dataset.bound="1";
-  const form=root.querySelector("[data-vk-search-form]");
-  const input=root.querySelector("[data-vk-query]");
-  const status=root.querySelector("[data-vk-status]");
-  const results=root.querySelector("[data-vk-results]");
-  const selected=root.querySelector("[data-vk-selected]");
-  const gate=root.querySelector("[data-vk-gate]");
-  const oneTapSlot=root.querySelector("[data-vk-onetap]");
-  let seq=0,items=[];
 
-  const setConnected=on=>{
-    gate.hidden=!!on;
-    form.classList.toggle("is-disabled",!on);
-    input.disabled=!on;
-    form.querySelector("button[type=submit]").disabled=!on;
-    if(on)status.textContent="VK подключён. Введите название видео.";
-  };
-  const ensureAuth=()=>{
-    const connected=vkBrowserConnected();
-    setConnected(connected);
-    if(!connected){
-      status.textContent="Сначала подключите VK ID.";
-      mountVkOneTap(oneTapSlot,()=>setConnected(true));
-    }
-  };
-  const renderVk=()=>{
-    results.innerHTML=items.map((item,i)=>`<button class="vk-result" type="button" data-vk-pick="${i}">
-      <span class="vk-result-thumb">${item.thumbnail?`<img src="${esc(item.thumbnail)}" alt="" loading="lazy">`:'<i>VK</i>'}<b>${formatVideoDuration(item.duration)}</b></span>
-      <span class="vk-result-copy"><strong>${esc(item.title)}</strong><small>${formatViews(item.views)} просмотров · VK Video</small></span>
-      <span class="vk-result-play">${cwIcon("play",16)}</span>
-    </button>`).join("");
-    results.querySelectorAll("[data-vk-pick]").forEach(btn=>btn.onclick=()=>{
-      const item=items[Number(btn.dataset.vkPick)];if(!item)return;
-      selected.hidden=false;
-      selected.innerHTML=`${cwIcon("check",15)}<span><b>${esc(item.title)}</b><small>Будет установлен в комнату</small></span>`;
-      results.querySelectorAll(".vk-result").forEach(x=>x.classList.remove("selected"));btn.classList.add("selected");
-      onPick?.(item);
-    });
-  };
-  form.onsubmit=async e=>{
+  const vkPublicForm=root.querySelector("[data-vk-public-search]");
+  const vkPublicQuery=root.querySelector("[data-vk-public-query]");
+  const vkLinkForm=root.querySelector("[data-vk-link-form]");
+  const vkLinkInput=root.querySelector("[data-vk-link]");
+  const vkStatus=root.querySelector("[data-vk-status]");
+  const vkSelected=root.querySelector("[data-vk-selected]");
+
+  vkPublicForm.onsubmit=e=>{
     e.preventDefault();
-    if(!vkBrowserConnected()){ensureAuth();return}
-    const q=input.value.trim();if(q.length<2){status.textContent="Введите хотя бы 2 символа.";return}
-    const request=++seq;status.innerHTML='<span class="button-loader"></span> Ищу в VK Video…';results.innerHTML="";
-    try{
-      const found=await vkBrowserSearch(q);if(request!==seq)return;items=found;
-      status.textContent=items.length?`Найдено: ${items.length}. Выберите нужное видео.`:"Ничего не нашлось. Попробуйте другой запрос.";
-      renderVk();
-    }catch(err){
-      if(request!==seq)return;
-      items=[];results.innerHTML="";status.innerHTML=`<span class="error-inline">${esc(err.message)}</span>`;
-      if(/подключите vk id/i.test(err.message||""))ensureAuth();
-    }
+    const q=vkPublicQuery.value.trim();
+    if(q.length<2){vkStatus.textContent="Введите хотя бы 2 символа.";return}
+    const url="https://vkvideo.ru/?q="+encodeURIComponent(q);
+    window.open(url,"_blank","noopener,noreferrer");
+    vkStatus.textContent="VK Video открыт в новой вкладке. Скопируйте ссылку нужного ролика и вставьте ниже.";
   };
-  ensureAuth();
+
+  vkLinkForm.onsubmit=e=>{
+    e.preventDefault();
+    const url=vkLinkInput.value.trim();
+    if(!/^https?:\/\/(?:www\.)?(?:vkvideo\.ru|vk\.com)\//i.test(url)){
+      vkStatus.innerHTML='<span class="error-inline">Нужна ссылка с vkvideo.ru или vk.com.</span>';
+      return;
+    }
+    vkSelected.hidden=false;
+    vkSelected.innerHTML=`${cwIcon("check",15)}<span><b>VK Video выбрано</b><small>${esc(url.replace(/^https?:\/\//,"").slice(0,90))}</small></span>`;
+    vkStatus.textContent="Ссылка готова. Она будет установлена в комнату.";
+    onPick?.({title:"VK Video",player:url,thumbnail:"",duration:0,views:0});
+  };
 
   const animeForm=root.querySelector("[data-anime-search-form]");
   const animeInput=root.querySelector("[data-anime-query]");
@@ -574,8 +549,8 @@ function bindVkSearch(root,{onPick,onAnime}={}){
       animeResults.querySelectorAll(".anime-result").forEach(x=>x.classList.remove("selected"));btn.classList.add("selected");
       const sources=Array.isArray(item.sources)?item.sources:[];
       animeSelected.hidden=false;
-      animeSelected.innerHTML=`<div class="anime-selected-card">${item.poster?`<img src="${esc(item.poster)}" alt="">`:""}<div><span class="eyebrow">ВЫБРАНО</span><b>${esc(item.title)}</b><small>AniList даёт каталог, но не видеофайл.</small></div></div>
-        ${sources.length?`<div class="anime-source-list"><span>Официальные/указанные источники</span>${sources.slice(0,6).map(src=>`<a href="${esc(src.url)}" target="_blank" rel="noopener noreferrer">${esc(src.site||"Источник")}${src.title?` · ${esc(src.title)}`:""} ${cwIcon("arrow",14)}</a>`).join("")}</div>`:'<div class="anime-no-source">Для этого тайтла AniList не вернул доступных источников.</div>'}`;
+      animeSelected.innerHTML=`<div class="anime-selected-card">${item.poster?`<img src="${esc(item.poster)}" alt="">`:""}<div><span class="eyebrow">ВЫБРАНО</span><b>${esc(item.title)}</b><small>AniList — это каталог, а не хранилище серий.</small></div></div>
+        ${sources.length?`<div class="anime-source-list"><span>Доступные источники</span>${sources.slice(0,6).map(src=>`<a href="${esc(src.url)}" target="_blank" rel="noopener noreferrer">${esc(src.site||"Источник")}${src.title?` · ${esc(src.title)}`:""} ${cwIcon("arrow",14)}</a>`).join("")}</div>`:'<div class="anime-no-source">Для этого тайтла AniList не вернул доступных источников.</div>'}`;
       onAnime?.(item);
     });
   };
@@ -598,7 +573,7 @@ function bindVkSearch(root,{onPick,onAnime}={}){
     root.querySelectorAll("[data-media-tab]").forEach(x=>x.classList.toggle("active",x===tab));
     root.querySelectorAll("[data-media-pane]").forEach(p=>p.hidden=p.dataset.mediaPane!==name);
     if(name==="anime")setTimeout(()=>animeInput?.focus(),20);
-    if(name==="vk")setTimeout(()=>input?.focus(),20);
+    if(name==="vk")setTimeout(()=>vkPublicQuery?.focus(),20);
   });
 }
 function openCreateRoomModal(){
