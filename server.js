@@ -83,12 +83,14 @@ try {
 }
 
 try {
-  const desktopHero = path.join(SITE_MEDIA_DIR, "hero", "main-intro-desktop.mp4");
-  if (hydrateBase64Parts(USER_HERO_PARTS_DIR, "main-intro-desktop.b64.", desktopHero)) {
-    console.log("Corrected desktop hero video ready");
+  const userHeroTar = path.join(__dirname, ".runtime-user-hero.tar");
+  if (hydrateBase64Parts(USER_HERO_PARTS_DIR, "main-intro-desktop.b64.", userHeroTar)) {
+    extractSiteMediaTar(userHeroTar, SITE_MEDIA_DIR);
+    fs.rmSync(userHeroTar, { force: true });
+    console.log("Corrected desktop hero bundle ready");
   }
 } catch (error) {
-  console.warn("Corrected desktop hero video could not be prepared:", error.message);
+  console.warn("Corrected desktop hero bundle could not be prepared:", error.message);
 }
 
 
