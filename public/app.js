@@ -5,7 +5,8 @@ let suppress = false, syncTimer = null, lastAppliedSeq = 0, remoteApplyUntil = 0
 
 const externalLoaders = {
   youtube: null,
-  vk: null
+  vk: null,
+  vkid: null
 };
 function loadExternalScript(src, test, timeoutMs=8000){
   if (test()) return Promise.resolve(true);
@@ -35,6 +36,11 @@ function loadVKAPI(){
   if(externalLoaders.vk) return externalLoaders.vk;
   externalLoaders.vk=loadExternalScript("https://vk.com/js/api/videoplayer.js",()=>!!window.VK?.VideoPlayer,9000);
   return externalLoaders.vk;
+}
+function loadVKIDAPI(){
+  if(externalLoaders.vkid) return externalLoaders.vkid;
+  externalLoaders.vkid=loadExternalScript("https://unpkg.com/@vkid/sdk@2.6.1/dist-sdk/umd/index.js",()=>!!window.VKIDSDK,12000);
+  return externalLoaders.vkid;
 }
 
 const CW_JOKES=[
@@ -347,6 +353,61 @@ function joinByCode(code,errorTarget){
 }
 
 
+const VK_ID_APP = 54806525;
+const VK_ID_REDIRECT = "https://cheburekwatch.onrender.com/auth/vk/callback";
+let vkIdConfigured=false;
+
+async function vkStatus(){
+  try{return await api("/api/vk/status",{method:"GET"})}
+  catch{return {connected:false}}
+}
+async function mountVkOneTap(container,onConnected){
+  if(!container)return;
+  container.innerHTML='<div class="vk-id-loading"><span class="button-loader"></span> Загружаю VK ID…</div>';
+  const ok=await loadVKIDAPI();
+  if(!ok || !window.VKIDSDK){
+    container.innerHTML='<div class="error">Не удалось загрузить официальный VK ID.</div>';
+    return;
+  }
+  const VKID=window.VKIDSDK;
+  try{
+    if(!vkIdConfigured){
+      VKID.Config.init({
+        app: VK_ID_APP,
+        redirectUrl: VK_ID_REDIRECT,
+        responseMode: VKID.ConfigResponseMode.Callback,
+        source: VKID.ConfigSource.LOWCODE,
+        scope: ""
+      });
+      vkIdConfigured=true;
+    }
+    container.innerHTML="";
+    const oneTap=new VKID.OneTap();
+    oneTap.render({container,showAlternativeLogin:true})
+      .on(VKID.WidgetEvents.ERROR,err=>{
+        console.warn("VK ID",err);
+        container.insertAdjacentHTML("beforeend",'<div class="vk-id-note">VK ID вернул ошибку. Можно попробовать ещё раз.</div>');
+      })
+      .on(VKID.OneTapInternalEvents.LOGIN_SUCCESS,async payload=>{
+        try{
+          container.classList.add("is-loading");
+          const data=await VKID.Auth.exchangeCode(payload.code,payload.device_id);
+          const accessToken=String(data?.access_token||data?.accessToken||"");
+          if(!accessToken)throw new Error("VK ID не вернул access token");
+          await api("/api/vk/connect",{method:"POST",body:{accessToken,expiresIn:Number(data?.expires_in||data?.expiresIn||3600)}});
+          container.innerHTML='<div class="vk-connected-badge">'+cwIcon("check",15)+'<span><b>VK подключён</b><small>Поиск видео доступен в этой сессии</small></span></div>';
+          onConnected?.();
+        }catch(err){
+          container.classList.remove("is-loading");
+          container.innerHTML='<div class="error">'+esc(err.message)+'</div><button class="btn btn-secondary" type="button" data-vk-retry>Попробовать ещё раз</button>';
+          container.querySelector("[data-vk-retry]")?.addEventListener("click",()=>mountVkOneTap(container,onConnected));
+        }
+      });
+  }catch(err){
+    container.innerHTML='<div class="error">'+esc(err.message||"Не удалось открыть VK ID")+'</div>';
+  }
+}
+
 function formatVideoDuration(total){
   total=Math.max(0,Math.floor(Number(total)||0));
   const h=Math.floor(total/3600),m=Math.floor((total%3600)/60),s=total%60;
@@ -365,6 +426,10 @@ function vkSearchPanelHtml(id){
       <label class="vk-search-box">${cwIcon("search",18)}<input data-vk-query maxlength="120" autocomplete="off" placeholder="Название фильма, сериала или видео"></label>
       <button class="btn btn-primary" type="submit"><span class="btn-label">ИСКАТЬ</span></button>
     </form>
+    <div class="vk-connect-gate" data-vk-gate hidden>
+      <div class="vk-connect-copy"><b>Подключите VK ID</b><span>Без защищённого ключа: вход проходит через официальный виджет VK.</span></div>
+      <div class="vk-onetap-slot" data-vk-onetap></div>
+    </div>
     <div class="vk-search-status" data-vk-status>Введите название — покажу результаты из VK Video.</div>
     <div class="vk-search-results" data-vk-results></div>
     <div class="vk-search-selected" data-vk-selected hidden></div>
@@ -378,7 +443,27 @@ function bindVkSearch(root,{onPick}={}){
   const status=root.querySelector("[data-vk-status]");
   const results=root.querySelector("[data-vk-results]");
   const selected=root.querySelector("[data-vk-selected]");
-  let seq=0,items=[];
+  const gate=root.querySelector("[data-vk-gate]");
+  const oneTapSlot=root.querySelector("[data-vk-onetap]");
+  let seq=0,items=[],connected=false;
+
+  const setConnected=on=>{
+    connected=!!on;
+    gate.hidden=connected;
+    form.classList.toggle("is-disabled",!connected);
+    input.disabled=!connected;
+    form.querySelector("button[type=submit]").disabled=!connected;
+    if(connected)status.textContent="VK подключён. Введите название видео.";
+  };
+
+  const ensureAuth=async()=>{
+    const state=await vkStatus();
+    setConnected(!!state.connected);
+    if(!state.connected){
+      status.textContent="Сначала подключите VK ID.";
+      mountVkOneTap(oneTapSlot,()=>setConnected(true));
+    }
+  };
 
   const render=()=>{
     results.innerHTML=items.map((item,i)=>`<button class="vk-result" type="button" data-vk-pick="${i}">
@@ -399,6 +484,7 @@ function bindVkSearch(root,{onPick}={}){
 
   form.onsubmit=async e=>{
     e.preventDefault();
+    if(!connected){await ensureAuth();return}
     const q=input.value.trim();
     if(q.length<2){status.textContent="Введите хотя бы 2 символа.";return}
     const request=++seq;
@@ -412,12 +498,17 @@ function bindVkSearch(root,{onPick}={}){
       render();
     }catch(err){
       if(request!==seq)return;
+      if(/подключите vk id/i.test(err.message||"")){
+        setConnected(false);
+        mountVkOneTap(oneTapSlot,()=>setConnected(true));
+      }
       items=[];results.innerHTML="";
       status.innerHTML=`<span class="error-inline">${esc(err.message)}</span>`;
     }
   };
-}
 
+  ensureAuth();
+}
 function openCreateRoomModal(){
   if(!me){navigate("/login");return}
   document.querySelector(".modal-backdrop")?.remove();
