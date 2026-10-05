@@ -263,6 +263,20 @@ function validateVideo(raw) {
     throw new Error("Поддерживаются VK Video ссылки вида /video-OWNER_VIDEO");
   }
 
+  if (host === "rutube.ru" || host === "www.rutube.ru") {
+    const parts = u.pathname.split("/").filter(Boolean);
+    let videoId = "";
+    if (parts[0] === "video" || parts[0] === "shorts") videoId = parts[1] || "";
+    if (parts[0] === "play" && parts[1] === "embed") videoId = parts[2] || "";
+    if (!/^[A-Za-z0-9_-]{16,80}$/.test(videoId)) throw new Error("Не удалось определить RUTUBE video ID");
+    return {
+      type: "rutube",
+      url: `https://rutube.ru/play/embed/${videoId}/`,
+      sourceUrl: u.href,
+      videoId
+    };
+  }
+
   const directExt = /\.(mp4|webm|ogg)(?:$|[?#])/i;
   if (directExt.test(u.pathname + u.search)) {
     return { type: "direct", url: u.href, sourceUrl: u.href };
@@ -522,6 +536,67 @@ app.get("/api/anime/search", async (req, res) => {
     res.json({ query: q, count: items.length, items });
   } catch (error) {
     res.status(502).json({ error: error?.name === "AbortError" ? "AniList отвечает слишком долго" : "Не удалось выполнить поиск аниме" });
+  } finally {
+    clearTimeout(timer);
+  }
+});
+
+// Best-effort RUTUBE catalogue search. Playback uses RUTUBE's official embed player.
+app.get("/api/rutube/search", async (req, res) => {
+  const q = String(req.query.q || "").trim().slice(0, 140);
+  if (q.length < 2) return res.status(400).json({ error: "Введите хотя бы 2 символа" });
+
+  const url = new URL("https://rutube.ru/api/search/video/");
+  url.searchParams.set("query", q);
+  url.searchParams.set("page", "1");
+  url.searchParams.set("limit", "12");
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 9000);
+  try {
+    const response = await fetch(url, {
+      signal: controller.signal,
+      headers: {
+        "Accept": "application/json, text/plain, */*",
+        "Accept-Language": "ru-RU,ru;q=0.9,en;q=0.6",
+        "Referer": "https://rutube.ru/",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/131 Safari/537.36"
+      }
+    });
+    if (!response.ok) {
+      return res.status(502).json({ error: "RUTUBE не отдал результаты поиска", fallback: "https://rutube.ru/search/?query=" + encodeURIComponent(q) });
+    }
+    const data = await response.json();
+    const raw = Array.isArray(data?.results) ? data.results : [];
+    const items = raw.map(entry => entry?.object || entry).map(v => {
+      const id = String(v?.id || v?.video_id || v?.code || "");
+      const title = String(v?.title || v?.name || "Без названия");
+      const author = v?.author || v?.owner || {};
+      const thumb = String(v?.thumbnail_url || v?.picture_url || v?.poster_url || v?.thumbnail || "");
+      const duration = Math.max(0, Number(v?.duration || 0));
+      const views = Math.max(0, Number(v?.views_count || v?.hits || v?.views || 0));
+      const age = Number(v?.pg_rating?.age || v?.age_limit || 0);
+      const paid = Boolean(v?.is_paid);
+      return {
+        id, title, thumbnail: thumb, duration, views,
+        author: String(author?.name || author?.username || v?.feed_name || v?.channel || "RUTUBE"),
+        paid, age,
+        url: id ? `https://rutube.ru/video/${id}/` : "",
+        embedUrl: id ? `https://rutube.ru/play/embed/${id}/` : ""
+      };
+    }).filter(v => /^[A-Za-z0-9_-]{16,80}$/.test(v.id) && v.title && !v.paid && (!v.age || v.age < 18)).slice(0,12);
+
+    res.json({
+      query: q,
+      count: items.length,
+      items,
+      fallback: "https://rutube.ru/search/?query=" + encodeURIComponent(q)
+    });
+  } catch (error) {
+    res.status(502).json({
+      error: error?.name === "AbortError" ? "RUTUBE отвечает слишком долго" : "Не удалось выполнить поиск RUTUBE",
+      fallback: "https://rutube.ru/search/?query=" + encodeURIComponent(q)
+    });
   } finally {
     clearTimeout(timer);
   }
