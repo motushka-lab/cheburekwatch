@@ -82,7 +82,7 @@ function easterPhotoHtml(index,className=""){
 }
 function photoGradientBandHtml(){
   return `<section class="new-photo-gradient" aria-label="Фотоархив CheburekWatch">
-    <div class="new-photo-gradient-copy"><span>CHEBUREK / ARCHIVE</span><b>кадры из вашей коллекции</b></div>
+    <div class="new-photo-gradient-copy"><span>CHAPTER / ARCHIVE</span><b>ШЕСТЬ КАДРОВ. ОДНА СТРАННАЯ ИСТОРИЯ.</b></div>
     <div class="new-photo-gradient-track">
       ${SITE_ASSETS.photos.map((src,i)=>`<figure style="--i:${i}"><img src="${src}" alt="" loading="lazy"><i>${String(i+1).padStart(2,"0")}</i></figure>`).join("")}
     </div>
@@ -91,9 +91,9 @@ function photoGradientBandHtml(){
 function ambientVideoStripHtml(){
   const posters=[SITE_ASSETS.photos[1],SITE_ASSETS.photos[3],SITE_ASSETS.photos[5]];
   return `<section class="motion-archive container">
-    <div class="section-head motion-head"><div><span class="eyebrow">Движение</span><h2>Три живых кадра</h2></div><p>Видео из архива включаются только когда попадают в кадр.</p></div>
+    <div class="section-head motion-head"><div><span class="eyebrow">АКТ II · ДВИЖЕНИЕ</span><h2>ЖИВЫЕ ПАНЕЛИ</h2></div><p>Три фрагмента появляются как манга-панели и оживают только тогда, когда вы до них доходите.</p></div>
     <div class="motion-grid">
-      ${SITE_ASSETS.videos.map((src,i)=>`<article class="motion-card motion-card-${i+1}"><video class="ambient-video" src="${src}" poster="${posters[i]}" muted playsinline loop preload="metadata"></video><div><span>0${i+1}</span><b>${["ночной фрагмент","сдвиг света","последний дубль"][i]}</b></div></article>`).join("")}
+      ${SITE_ASSETS.videos.map((src,i)=>`<article class="motion-card motion-card-${i+1}"><video class="ambient-video" src="${src}" poster="${posters[i]}" muted playsinline loop preload="metadata"></video><div><span>0${i+1}</span><b>${["ПЕРВЫЙ УДАР","ВТОРОЙ КАДР","ФИНАЛЬНЫЙ ПОВОРОТ"][i]}</b></div></article>`).join("")}
     </div>
   </section>`;
 }
@@ -228,7 +228,7 @@ function headerHtml(){
       <a class="btn btn-ghost ${activeRooms?"active":""}" href="${me?"/rooms":"/login"}" data-nav>Комнаты</a>
     </nav>
     <div class="header-actions">
-      ${me?`<button class="btn btn-secondary" data-create>${cwIcon("plus")}<span class="btn-label">Создать комнату</span></button>
+      ${me?`<button class="btn btn-secondary" data-create>${cwIcon("plus")}<span class="btn-label">ОТКРЫТЬ КОМНАТУ</span></button>
       <a class="btn btn-icon" href="/profile" data-nav aria-label="Профиль">${avatarHtml(me.nickname,"sm")}</a>`:`<a class="btn btn-secondary" href="/login" data-nav>Войти</a>`}
     </div>
   </div></header>`;
@@ -287,14 +287,14 @@ function openCreateRoomModal(){
   const wrap=document.createElement("div");
   wrap.className="modal-backdrop";
   wrap.innerHTML=`<div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
-    <div class="modal-head"><div><span class="eyebrow">Новый сеанс</span><h2 class="modal-title" id="modal-title">Создать комнату</h2></div><button class="btn btn-icon" data-close-modal aria-label="Закрыть">${cwIcon("close")}</button></div>
-    <div class="modal-poster"><img src="${archivePhoto(2)}" alt=""><div><span>Фильм можно выбрать сейчас или позже</span><h3>Что будем смотреть?</h3><button class="btn btn-paper" type="button" id="pickMovie">${cwIcon("search")}Выбрать кино</button></div></div>
-    <label class="field"><span>Название комнаты</span><input id="newRoomName" placeholder="Название вашей комнаты" maxlength="60"></label>
+    <div class="modal-head"><div><span class="eyebrow">НОВАЯ ГЛАВА</span><h2 class="modal-title" id="modal-title">ОТКРЫТЬ КОМНАТУ</h2></div><button class="btn btn-icon" data-close-modal aria-label="Закрыть">${cwIcon("close")}</button></div>
+    <div class="modal-poster"><img src="${archivePhoto(2)}" alt=""><div><span>Источник можно выбрать сейчас или уже внутри комнаты</span><h3>КАКОЙ КАДР ОТКРОЕТ ГЛАВУ?</h3><button class="btn btn-paper" type="button" id="pickMovie">${cwIcon("search")}Выбрать кино</button></div></div>
+    <label class="field"><span>ИМЯ ГЛАВЫ</span><input id="newRoomName" placeholder="Название вашей главы" maxlength="60"></label>
     <div class="privacy-options">
-      <button class="selected" type="button" data-privacy="private">${cwIcon("lock")}<span><strong>Только для своих</strong>Вход по приглашению или коду</span><i>${cwIcon("check",15)}</i></button>
-      <button type="button" data-privacy="open">${cwIcon("users")}<span><strong>Открытая комната</strong>Её увидят в общем списке</span><i></i></button>
+      <button class="selected" type="button" data-privacy="private">${cwIcon("lock")}<span><strong>ЗАКРЫТАЯ ГЛАВА</strong>Вход только по коду или приглашению</span><i>${cwIcon("check",15)}</i></button>
+      <button type="button" data-privacy="open">${cwIcon("users")}<span><strong>ОТКРЫТАЯ ГЛАВА</strong>Её увидят участники с доступом</span><i></i></button>
     </div>
-    <div id="createRoomErr"></div><div class="modal-actions"><button class="btn btn-ghost" data-close-modal>Отмена</button><button class="btn btn-primary" id="createRoomSubmit">${cwIcon("play")}<span class="btn-label">Создать и войти</span></button></div>
+    <div id="createRoomErr"></div><div class="modal-actions"><button class="btn btn-ghost" data-close-modal>Отмена</button><button class="btn btn-primary" id="createRoomSubmit">${cwIcon("play")}<span class="btn-label">ОТКРЫТЬ ГЛАВУ</span></button></div>
   </div>`;
   document.body.appendChild(wrap);
   const close=()=>wrap.remove();
@@ -312,7 +312,7 @@ function openCreateRoomModal(){
       const d=await api("/api/rooms",{method:"POST"});
       btn.classList.remove("is-loading");btn.classList.add("is-success");btn.innerHTML=`${cwIcon("check")}<span class="btn-label">Готово</span>`;
       setTimeout(()=>{close();navigate("/room/"+d.room.code)},420);
-    }catch(e){btn.disabled=false;btn.classList.remove("is-loading");btn.innerHTML=`${cwIcon("play")}<span class="btn-label">Создать и войти</span>`;wrap.querySelector("#createRoomErr").innerHTML=`<div class="error">${esc(e.message)}</div>`}
+    }catch(e){btn.disabled=false;btn.classList.remove("is-loading");btn.innerHTML=`${cwIcon("play")}<span class="btn-label">ОТКРЫТЬ ГЛАВУ</span>`;wrap.querySelector("#createRoomErr").innerHTML=`<div class="error">${esc(e.message)}</div>`}
   });
 }
 
@@ -332,10 +332,10 @@ async function landingPage(){
   let realRooms=[];
   if(me){try{realRooms=(await api("/api/my-rooms")).rooms||[]}catch{}}
   const roomSection=me
-    ? `<section class="section container room-preview-section"><div class="section-head"><div><span class="eyebrow">Ваши комнаты</span><h2>Продолжить просмотр</h2></div><a class="btn btn-ghost" href="/rooms" data-nav>Все комнаты ${cwIcon("arrow")}</a></div>
+    ? `<section class="section container room-preview-section"><div class="section-head"><div><span class="eyebrow">ВАШИ ГЛАВЫ</span><h2>ПРОДОЛЖИТЬ АРКУ</h2></div><a class="btn btn-ghost" href="/rooms" data-nav>ВСЕ ГЛАВЫ ${cwIcon("arrow")}</a></div>
        <div class="rooms-grid featured">${realRooms.length?realRooms.slice(0,4).map((r,n)=>roomCardHtml(r,n)).join(""):emptyStateHtml()}</div>${easterPhotoHtml(4,"archive-room-peek")}</section>`
-    : `<section class="section container room-preview-section"><div class="section-head"><div><span class="eyebrow">Совместный просмотр</span><h2>Здесь будут ваши комнаты</h2></div></div>
-       <div class="empty-state"><div class="empty-projector"><i></i><span></span></div><span class="eyebrow">Пока пусто</span><h3>Первый сеанс ещё впереди</h3><p>Войдите в аккаунт, создайте комнату и зовите друзей по коду.</p><a class="btn btn-primary" href="/login" data-nav>Войти</a></div>${easterPhotoHtml(4,"archive-room-peek")}</section>`;
+    : `<section class="section container room-preview-section"><div class="section-head"><div><span class="eyebrow">СИНХРОННАЯ АРКА</span><h2>ЗДЕСЬ НАЧНЁТСЯ ВАША ИСТОРИЯ</h2></div></div>
+       <div class="empty-state"><div class="empty-projector"><i></i><span></span></div><span class="eyebrow">ПУСТОЙ КАДР</span><h3>ПЕРВАЯ ГЛАВА ЕЩЁ НЕ ОТКРЫТА</h3><p>Войдите, откройте комнату и дайте друзьям код. Дальше сюжет разберётся сам.</p><a class="btn btn-primary" href="/login" data-nav>Войти</a></div>${easterPhotoHtml(4,"archive-room-peek")}</section>`;
 
   const heroMedia=sessionStorage.getItem("cw-main-intro-played")==="1"
     ? `<img class="hero-image hero-final-frame" src="${SITE_ASSETS.heroFinal}" alt="">`
@@ -344,18 +344,18 @@ async function landingPage(){
   shell(`<main>
     <section class="hero archive-hero">${heroMedia}<div class="hero-overlay"></div>
       <div class="hero-archive-stack" aria-hidden="true"><span style="background-image:url('${archivePhoto(3)}')"></span><span style="background-image:url('${archivePhoto(1)}')"></span></div>
-      <div class="container hero-content reveal"><span class="hero-kicker"><i></i> Вечер начинается здесь</span><h1>Кино ближе,<br><em>когда вы вместе</em></h1>
-      <p>Смотрите любимые фильмы синхронно. Обсуждайте, смейтесь и проживайте каждую сцену — даже если между вами тысячи километров.</p>
-      <div class="hero-actions"><button class="btn btn-primary" data-create>${cwIcon("play")}<span class="btn-label">Создать комнату</span></button><a class="btn btn-secondary" href="${me?"/rooms":"/login"}" data-nav>Войти по коду ${cwIcon("arrow")}</a></div></div>
+      <div class="container hero-content reveal"><span class="hero-kicker"><i></i> АКТ I · СИНХРОН АКТИВИРУЕТСЯ</span><h1>ОДИН КАДР.<br><em>ОДНА ВОЛЯ.</em></h1>
+      <p>Запускайте фильм одновременно, держите общий ритм и превращайте обычный просмотр в свою безумную экранную арку.</p>
+      <div class="hero-actions"><button class="btn btn-primary" data-create>${cwIcon("play")}<span class="btn-label">ОТКРЫТЬ КОМНАТУ</span></button><a class="btn btn-secondary" href="${me?"/rooms":"/login"}" data-nav>ВОЙТИ ПО КОДУ ${cwIcon("arrow")}</a></div></div>
       ${easterPhotoHtml(0,"archive-hero-easter")}
     </section>
     ${photoGradientBandHtml()}
     ${roomSection}
     ${ambientVideoStripHtml()}
     <section class="manifesto archive-manifesto"><div class="container manifesto-grid"><div class="manifesto-image"><img src="${archivePhoto(5)}" alt=""><span>ОДИН ЭКРАН<br>НА ВСЕХ</span>${easterPhotoHtml(2,"archive-manifesto-easter")}</div>
-      <div class="manifesto-copy"><span class="eyebrow">Без расстояний</span><h2>Как в кинотеатре.<br>Только у каждого дома.</h2>
-      <div class="feature-list"><div><b>01</b><span><strong>Кадр в кадр</strong>Пауза, перемотка и продолжение синхронны для всех.</span></div><div><b>02</b><span><strong>Живой разговор</strong>Чат и быстрые реакции рядом, но не мешают просмотру.</span></div><div><b>03</b><span><strong>Только свои</strong>Входите в комнату по коду и смотрите со своей компанией.</span></div></div></div></div></section>
-    <section class="club-notes container archive-notes"><div class="club-note-copy"><span class="eyebrow">Ваш профиль</span><h2>Смотрите вместе.<br>Прокачивайте профиль.</h2><p>Уровень, минуты просмотра и достижения считаются по реальной активности в комнатах.</p></div>
+      <div class="manifesto-copy"><span class="eyebrow">АКТ III · БЕЗ РАССТОЯНИЙ</span><h2>КАЖДЫЙ КАДР —<br>ОБЩИЙ УДАР ПО ТАЙМЛАЙНУ.</h2>
+      <div class="feature-list"><div><b>01</b><span><strong>СИНХРОН БЕЗ КОМПРОМИССОВ</strong>Пауза, перемотка и продолжение происходят вместе — никаких параллельных реальностей.</span></div><div><b>02</b><span><strong>РЕПЛИКИ НЕ ПРОПАДАЮТ</strong>РЕПЛИКИ и реакции живут рядом с экраном, как комментарии на полях манги.</span></div><div><b>03</b><span><strong>КОД ДЛЯ СВОИХ</strong>Один код — и ваша компания уже внутри этой главы.</span></div></div></div></div></section>
+    <section class="club-notes container archive-notes"><div class="club-note-copy"><span class="eyebrow">ЛИЧНАЯ АРКА</span><h2>СМОТРИТЕ ДАЛЬШЕ.<br>УСИЛИВАЙТЕ ХРОНИКУ.</h2><p>Уровень, минуты и знаки отличия растут только из реальных совместных просмотров.</p></div>
       <div class="club-collage archive-collage"><img src="${archivePhoto(0)}" alt=""><img src="${archivePhoto(4)}" alt=""><img src="${archivePhoto(2)}" alt=""><span class="ticket">CHEBUREK<br><small>WATCH PARTY</small></span>${easterPhotoHtml(5,"archive-note-easter")}</div></section>
   </main>`);
   setupMainHeroVideo();
@@ -378,12 +378,12 @@ function mountCinemaIntro(){}
 function authPage(mode){
   shell(`<main class="auth-page"><div class="auth-visual archive-auth-visual"><img src="${archivePhoto(3)}" alt=""><div class="auth-visual-film"><video class="ambient-video" src="${SITE_ASSETS.videos[1]}" poster="${archivePhoto(3)}" muted playsinline loop preload="metadata"></video></div><div class="auth-quote"><span>СЕАНС / CHEBUREK</span><h2>Истории становятся<br>настоящими, когда<br>ими делятся.</h2></div>${easterPhotoHtml(1,"archive-auth-easter")}</div>
     <div class="auth-form-wrap"><div class="auth-mobile-logo">${logoHtml()}</div><a class="btn btn-ghost auth-back" href="/" data-nav>${cwIcon("back")}На главную</a>
-      <form class="auth-form" id="authform"><span class="eyebrow">${mode==="login"?"С возвращением":"Добро пожаловать"}</span><h1>${mode==="login"?"Продолжим смотреть?":"Займите место"}</h1><p>${mode==="login"?"Войдите в аккаунт или используйте код комнаты.":"Создайте профиль для совместных кинопросмотров."}</p>
+      <form class="auth-form" id="authform"><span class="eyebrow">${mode==="login"?"ВОЗВРАЩЕНИЕ ГЕРОЯ":"НОВАЯ ГЛАВА"}</span><h1>${mode==="login"?"ПРОДОЛЖИМ ЭТУ ИСТОРИЮ?":"ВЫБЕРИТЕ СВОЮ ПОЗИЦИЮ"}</h1><p>${mode==="login"?"Вернитесь в свою хронику или ворвитесь прямо в комнату по коду.":"Создайте профиль — это будет ваша личная линия в общей экранной истории."}</p>
       <div class="auth-tabs"><a class="btn btn-ghost ${mode==="login"?"active":""}" href="/login" data-nav>Вход</a><a class="btn btn-ghost ${mode==="register"?"active":""}" href="/register" data-nav>Регистрация</a></div>
       <label class="field"><span>Никнейм</span><input id="nick" autocomplete="username" maxlength="24" placeholder="Как вас называть?" required></label>
       <label class="field"><span>Пароль</span><input id="pass" type="password" autocomplete="${mode==="login"?"current-password":"new-password"}" minlength="8" placeholder="Не менее 8 символов" required></label>
       <div id="formerr"></div><button class="btn btn-primary full" type="submit"><span class="btn-label">${mode==="login"?"Войти":"Создать аккаунт"}</span>${cwIcon("arrow")}</button>
-      <div class="or"><span>или</span></div><label class="field"><span>Код комнаты</span><input id="authRoomCode" placeholder="Например: KINO24" maxlength="6"></label><button class="btn btn-secondary full" id="authJoin" type="button">Войти по коду</button><div id="joinerr"></div>
+      <div class="or"><span>или</span></div><label class="field"><span>Код комнаты</span><input id="authRoomCode" placeholder="Например: KINO24" maxlength="6"></label><button class="btn btn-secondary full" id="authJoin" type="button">ВОЙТИ ПО КОДУ</button><div id="joinerr"></div>
       </form></div></main>`,{header:false,bottom:false});
   setupAmbientVideos();
   const q=new URLSearchParams(location.search).get("code");if(q)$("#authRoomCode").value=q.toUpperCase();
@@ -393,8 +393,8 @@ function authPage(mode){
 
 async function roomsPage(){
   const d=await api("/api/my-rooms");
-  shell(`<main class="page container rooms-archive-page"><div class="browse-top reveal"><div><span class="eyebrow">Ваши комнаты</span><h1>Выберите комнату</h1><p>Здесь отображаются только реальные комнаты вашего аккаунта.</p></div><button class="btn btn-primary" data-create>${cwIcon("plus")}<span class="btn-label">Новая комната</span></button></div>
-    <div class="filter-row real-room-search"><label class="search-box">${cwIcon("search")}<input id="roomSearch" placeholder="Найти комнату или ввести код"></label></div>
+  shell(`<main class="page container rooms-archive-page"><div class="browse-top reveal"><div><span class="eyebrow">ВАШИ ГЛАВЫ</span><h1>ВЫБЕРИТЕ ГЛАВУ</h1><p>Никаких декораций: здесь только реальные комнаты, к которым у вас есть доступ.</p></div><button class="btn btn-primary" data-create>${cwIcon("plus")}<span class="btn-label">НОВАЯ ГЛАВА</span></button></div>
+    <div class="filter-row real-room-search"><label class="search-box">${cwIcon("search")}<input id="roomSearch" placeholder="Найти главу или ввести код"></label></div>
     <div id="roomsGrid" class="rooms-grid browse-grid">${d.rooms.length?d.rooms.map((r,n)=>roomCardHtml(r,n)).join(""):emptyStateHtml()}</div>
     <aside class="rooms-archive-easters">${easterPhotoHtml(1,"rooms-peek-a")}${easterPhotoHtml(3,"rooms-peek-b")}${easterPhotoHtml(5,"rooms-peek-c")}</aside>
   </main>`);
@@ -409,20 +409,20 @@ async function profilePage(){
   const d=await api("/api/profile");me=d.user;
   const next=me.minutesToNext||20,hours=Math.floor((me.watchMinutes||0)/60),mins=(me.watchMinutes||0)%60,unlocked=d.user.achievements.length;
   const firstAchievements=d.user.availableAchievements.slice(0,3);
-  shell(`<main class="profile-page warning-profile"><section class="profile-hero"><img src="${SITE_ASSETS.warning.banner}" alt=""><div class="profile-shade"></div><div class="warning-stamp">PROFILE / WATCHER</div><div class="container profile-info">${avatarHtml(me.nickname,"lg")}<div class="profile-name"><span class="eyebrow">Профиль зрителя</span><h1>${esc(me.nickname)}</h1><p>@${esc(me.nickname.toLowerCase().replace(/\s+/g,""))} · ${esc(me.secretPrefix||me.prefix||"зритель")}</p></div><button class="btn btn-secondary" id="profileSettings">Настроить профиль</button></div></section>
+  shell(`<main class="profile-page warning-profile"><section class="profile-hero"><img src="${SITE_ASSETS.warning.banner}" alt=""><div class="profile-shade"></div><div class="warning-stamp">PROFILE / WATCHER</div><div class="container profile-info">${avatarHtml(me.nickname,"lg")}<div class="profile-name"><span class="eyebrow">ХРОНИКА ЗРИТЕЛЯ</span><h1>${esc(me.nickname)}</h1><p>@${esc(me.nickname.toLowerCase().replace(/\s+/g,""))} · ${esc(me.secretPrefix||me.prefix||"зритель")}</p></div><button class="btn btn-secondary" id="profileSettings">НАСТРОИТЬ ХРОНИКУ</button></div></section>
     <div class="container profile-content"><section class="level-card warning-level-card"><div class="level-number">${String(me.level).padStart(2,"0")}</div><div class="level-copy"><span>УРОВЕНЬ</span><h3>${esc(me.secretPrefix||me.prefix||"Зритель")}</h3><div class="progress"><i style="width:${Math.max(0,Math.min(100,Number(me.progress||0)))}%"></i></div><p>${next} мин. до следующего уровня</p></div><div class="stats"><div><strong>${me.watchMinutes||0}</strong><span>Минут</span></div><div><strong>${hours}ч ${mins}м</strong><span>Просмотра</span></div><div><strong>${unlocked}</strong><span>Наград</span></div></div></section>
 
-    <section class="profile-warning-gallery"><article class="warning-art warning-art-main"><img src="${SITE_ASSETS.warning.warning2}" alt=""><div><span>WARNING / 01</span><b>Личный режим просмотра</b><small>Профиль получает цвет и характер из вашего архива, а не из случайного стока.</small></div></article><article class="warning-art"><img src="${SITE_ASSETS.warning.arthur}" alt=""><div><span>WARNING / 02</span><b>Редкий кадр</b><small>Спрятан как часть профиля — заметен, но не перетягивает весь экран.</small></div></article></section>
+    <section class="profile-warning-gallery"><article class="warning-art warning-art-main"><img src="${SITE_ASSETS.warning.warning2}" alt=""><div><span>WARNING / 01</span><b>ЛИЧНАЯ ПАНЕЛЬ</b><small>Профиль собран из вашего архива: цвет, настроение и характер принадлежат только этой истории.</small></div></article><article class="warning-art"><img src="${SITE_ASSETS.warning.arthur}" alt=""><div><span>WARNING / 02</span><b>СКРЫТАЯ ПАНЕЛЬ</b><small>Редкий кадр спрятан внутри композиции и появляется как небольшая пасхалка.</small></div></article></section>
 
-    <section class="profile-section"><div class="section-head"><div><span class="eyebrow">Коллекция</span><h2>Знаки отличия</h2></div></div><div class="achievements">${firstAchievements.length?firstAchievements.map((a,n)=>`<div><b>${["01","02","03"][n]||"•"}</b><span><strong>${esc(a.title)}</strong>${esc(a.desc)}</span></div>`).join(""):`<div><b>○</b><span><strong>Пока пусто</strong>Достижения появятся после реальных просмотров</span></div>`}</div></section>
+    <section class="profile-section"><div class="section-head"><div><span class="eyebrow">АРСЕНАЛ ДОСТИЖЕНИЙ</span><h2>ЗНАКИ СИЛЫ</h2></div></div><div class="achievements">${firstAchievements.length?firstAchievements.map((a,n)=>`<div><b>${["01","02","03"][n]||"•"}</b><span><strong>${esc(a.title)}</strong>${esc(a.desc)}</span></div>`).join(""):`<div><b>○</b><span><strong>ПУСТОЙ КАДР</strong>Достижения появятся после реальных просмотров</span></div>`}</div></section>
     <aside class="profile-archive-easters">${easterPhotoHtml(0,"profile-peek-a")}${easterPhotoHtml(4,"profile-peek-b")}</aside>
-    <section class="profile-section profile-real-note"><div class="empty-state"><div class="empty-projector"><i></i><span></span></div><span class="eyebrow">История просмотров</span><h3>Здесь появятся только реальные данные</h3><p>Сервер пока не хранит отдельную историю фильмов и избранное, поэтому здесь нет выдуманных просмотров.</p></div></section>
+    <section class="profile-section profile-real-note"><div class="empty-state"><div class="empty-projector"><i></i><span></span></div><span class="eyebrow">ХРОНИКА ПРОСМОТРОВ</span><h3>ТОЛЬКО КАНОНИЧНЫЕ ДАННЫЕ</h3><p>Пока сервер не хранит отдельную историю фильмов и избранное — значит, никаких выдуманных сцен здесь не будет.</p></div></section>
     </div></main>`);
   $("#profileSettings").onclick=openAccountModal;
 }
 
 function playerHtml(media){
-  if(!media)return `<div class="emptyvideo"><img src="${archivePhoto(1)}" alt=""><div class="emptyvideo-shade"></div><div class="emptyvideo-copy"><span>КИНО НЕ ВЫБРАНО</span><b>Экран ждёт фильм</b><small>Нажмите «Сменить кино» и вставьте ссылку YouTube, VK Video или прямой файл.</small></div></div>`;
+  if(!media)return `<div class="emptyvideo"><img src="${archivePhoto(1)}" alt=""><div class="emptyvideo-shade"></div><div class="emptyvideo-copy"><span>КАДР ЕЩЁ НЕ ВЫБРАН</span><b>ЭКРАН ЖДЁТ СВОЮ ГЛАВУ</b><small>Откройте «СМЕНИТЬ КИНО» и дайте комнате источник: YouTube, VK Video или прямой файл.</small></div></div>`;
   if(media.type==="youtube")return `<div class="player-frame yt-stage" id="yt"><div class="player-loading">Подключаем видео…</div></div>`;
   if(media.type==="vk")return `<iframe class="player-frame" id="vkframe" allow="autoplay; encrypted-media; fullscreen; picture-in-picture" allowfullscreen src="${esc(media.url)}"></iframe>`;
   return `<video class="player-frame" id="htmlvideo" playsinline preload="metadata" controls src="${esc(media.url)}"></video>`;
@@ -430,14 +430,14 @@ function playerHtml(media){
 async function roomPage(code){
   try{
     const d=await api(`/api/rooms/${encodeURIComponent(code)}`);room=d.room;
-    const people=room.users||[],label=room.media?(room.media.type==="youtube"?"YouTube":room.media.type==="vk"?"VK Video":"Видео"):"Фильм не выбран";
+    const people=room.users||[],label=room.media?(room.media.type==="youtube"?"YouTube":room.media.type==="vk"?"VK Video":"Видео"):"Кадр не выбран";
     shell(`<main class="watch-page"><div class="watch-header container"><a class="btn btn-ghost" href="/rooms" data-nav>${cwIcon("back")}<span>Комнаты</span></a><div class="room-title"><div><h3>Комната ${esc(room.code)}</h3><span>${people.length} ${people.length===1?"участник":"участников"} сейчас</span></div></div><div class="participant-stack">${people.slice(0,3).map(u=>avatarHtml(u.nickname)).join("")}${people.length>3?`<span>+${people.length-3}</span>`:""}</div></div>
-      <div class="watch-layout container roomlayout ${room.media?"has-media":"needs-media"}"><section class="player-column"><div class="player video-shell" id="videobox">${playerHtml(room.media)}<div class="movie-label"><span>${room.media?"ИСТОЧНИК В КОМНАТЕ":"КИНО НЕ ВЫБРАНО"}</span><strong>${esc(label)}</strong></div><div class="player-overlay" id="playerOverlay"><button type="button" class="player-chat-toggle" id="playerChatToggle">${cwIcon("chat")}</button><button type="button" class="player-fullscreen" id="playerFullscreen">${cwIcon("expand")}</button><div class="overlay-chat" id="overlayChat"><div class="overlay-head"><b>Чат</b><button id="overlayClose">×</button></div><div class="overlay-messages" id="overlayMessages"></div><form id="overlayForm"><input id="overlayInput" maxlength="500" placeholder="Написать сообщение…"><button type="submit">${cwIcon("send",17)}</button></form></div></div></div>
-      <div class="player-controls"><button class="btn btn-icon" id="seekBack" aria-label="Назад на 10 секунд">${cwIcon("back")}</button><button class="btn btn-icon" id="playerToggle" aria-label="Воспроизвести">${cwIcon(room.playing?"pause":"play")}</button><span class="player-sync-note">синхрон</span><button class="btn btn-icon" aria-label="Громкость">${cwIcon("sound")}</button><button class="btn btn-icon" id="playerFullscreenBottom" aria-label="На весь экран">${cwIcon("expand")}</button></div>
-      <div class="under-player"><div><h3>${esc(label)}</h3><span>Комната ${esc(room.code)}</span></div><div class="reaction-row"><button class="btn btn-secondary" data-room-reaction="♥">${cwIcon("heart")}</button><button class="btn btn-secondary" data-room-reaction="ХА">${cwIcon("smile")}</button><button class="btn btn-primary" id="movieSelectorToggle">${cwIcon("film")}<span class="btn-label">Сменить кино</span></button></div></div>
-      <div class="movie-selector" id="movieSelector" hidden><div class="selector-head"><div><span class="eyebrow">Источник</span><h3>Добавить или сменить кино</h3></div><button class="btn btn-icon" id="movieSelectorClose">${cwIcon("close")}</button></div><p class="selector-note">Вставьте ссылку YouTube, VK Video или прямую ссылку на видео. Изменение синхронизируется для комнаты.</p><form id="mediaform" class="mediaform"><input id="mediaurl" placeholder="YouTube / VK / прямая ссылка" required><button class="btn btn-primary">${cwIcon("play")}<span class="btn-label">Поставить кино</span></button></form><div id="mediaerr"></div></div>
+      <div class="watch-layout container roomlayout ${room.media?"has-media":"needs-media"}"><section class="player-column"><div class="player video-shell" id="videobox">${playerHtml(room.media)}<div class="movie-label"><span>${room.media?"ИСТОЧНИК АКТИВИРОВАН":"КАДР ЕЩЁ НЕ ВЫБРАН"}</span><strong>${esc(label)}</strong></div><div class="player-overlay" id="playerOverlay"><button type="button" class="player-chat-toggle" id="playerChatToggle">${cwIcon("chat")}</button><button type="button" class="player-fullscreen" id="playerFullscreen">${cwIcon("expand")}</button><div class="overlay-chat" id="overlayChat"><div class="overlay-head"><b>РЕПЛИКИ</b><button id="overlayClose">×</button></div><div class="overlay-messages" id="overlayMessages"></div><form id="overlayForm"><input id="overlayInput" maxlength="500" placeholder="Написать сообщение…"><button type="submit">${cwIcon("send",17)}</button></form></div></div></div>
+      <div class="player-controls"><button class="btn btn-icon" id="seekBack" aria-label="Назад на 10 секунд">${cwIcon("back")}</button><button class="btn btn-icon" id="playerToggle" aria-label="Воспроизвести">${cwIcon(room.playing?"pause":"play")}</button><span class="player-sync-note">СИНХРОН</span><button class="btn btn-icon" aria-label="Громкость">${cwIcon("sound")}</button><button class="btn btn-icon" id="playerFullscreenBottom" aria-label="На весь экран">${cwIcon("expand")}</button></div>
+      <div class="under-player"><div><h3>${esc(label)}</h3><span>Комната ${esc(room.code)}</span></div><div class="reaction-row"><button class="btn btn-secondary" data-room-reaction="♥">${cwIcon("heart")}</button><button class="btn btn-secondary" data-room-reaction="ХА">${cwIcon("smile")}</button><button class="btn btn-primary" id="movieSelectorToggle">${cwIcon("film")}<span class="btn-label">СМЕНИТЬ КИНО</span></button></div></div>
+      <div class="movie-selector" id="movieSelector" hidden><div class="selector-head"><div><span class="eyebrow">НОВЫЙ КАДР</span><h3>СМЕНИТЬ ИСТОЧНИК</h3></div><button class="btn btn-icon" id="movieSelectorClose">${cwIcon("close")}</button></div><p class="selector-note">Вставьте ссылку YouTube, VK Video или прямую ссылку на видео. Изменение СИНХРОНизируется для комнаты.</p><form id="mediaform" class="mediaform"><input id="mediaurl" placeholder="YouTube / VK / прямая ссылка" required><button class="btn btn-primary">${cwIcon("play")}<span class="btn-label">ЗАПУСТИТЬ КАДР</span></button></form><div id="mediaerr"></div></div>
       </section>
-      <aside class="chat-panel"><div class="chat-head"><div><h3>Чат</h3><span>${people.length} в комнате</span></div><div class="chat-head-actions"><button class="btn btn-ghost" id="invite">Пригласить</button><button class="btn btn-icon" id="peopleToggle" aria-label="Участники">${cwIcon("users")}</button></div></div>
+      <aside class="chat-panel"><div class="chat-head"><div><h3>РЕПЛИКИ</h3><span>${people.length} в комнате</span></div><div class="chat-head-actions"><button class="btn btn-ghost" id="invite">ПОЗВАТЬ</button><button class="btn btn-icon" id="peopleToggle" aria-label="Участники">${cwIcon("users")}</button></div></div>
       <div class="participants-popover" id="peoplePopover" hidden><div id="people">${peopleHtml(people)}</div>${room.ownerId===me.id?`<button id="deleteRoom" class="btn btn-ghost danger-text">Удалить комнату</button>`:""}<button id="creatorBtn" class="btn btn-ghost">Создатель</button></div>
       <div class="messages" id="messages"></div><div class="reaction-picker"><button type="button" data-chat-reaction="♥">♥</button><button type="button" data-chat-reaction="😂">😂</button><button type="button" data-chat-reaction="🔥">🔥</button><button type="button" data-chat-reaction="😮">😮</button></div><form id="chatform" class="chat-input"><input id="chatinput" maxlength="500" placeholder="Написать сообщение..."><button class="btn btn-icon" type="submit" aria-label="Отправить">${cwIcon("send")}</button></form></aside></div>
     </main>`,{bottom:false});
@@ -457,7 +457,7 @@ function peopleHtml(users){
 }
 async function bindRoom(code){
   const inviteUrl=location.origin+"/room/"+code;
-  $("#invite").onclick=async()=>{try{await navigator.clipboard.writeText(inviteUrl);const b=$("#invite");b.innerHTML="✓ <span>Скопировано</span>";setTimeout(()=>b.innerHTML="↗ <span>Пригласить</span>",1500)}catch{prompt("Ссылка на комнату",inviteUrl)}};
+  $("#invite").onclick=async()=>{try{await navigator.clipboard.writeText(inviteUrl);const b=$("#invite");b.innerHTML="✓ <span>Скопировано</span>";setTimeout(()=>b.innerHTML="↗ <span>ПОЗВАТЬ</span>",1500)}catch{prompt("Ссылка на комнату",inviteUrl)}};
   $("#creatorBtn")?.addEventListener("click",()=>openCreatorPanel(code));
   $("#deleteRoom")?.addEventListener("click",async()=>{if(!confirm(`Удалить комнату ${code}? Это действие нельзя отменить.`))return;try{await api(`/api/rooms/${code}`,{method:"DELETE"});navigate("/rooms")}catch(e){alert(e.message)}});
   $("#mediaform").onsubmit=async e=>{e.preventDefault();try{const d=await api(`/api/rooms/${code}/media`,{method:"POST",body:JSON.stringify({url:$("#mediaurl").value})});room=d.room;mountMedia();$("#mediaurl").value=""}catch(err){$("#mediaerr").innerHTML=`<div class="error">${esc(err.message)}</div>`}};
@@ -479,7 +479,7 @@ async function bindRoom(code){
   eventSource.addEventListener("presence",e=>$("#people").innerHTML=peopleHtml(JSON.parse(e.data)));
   eventSource.addEventListener("message",e=>appendMessage(JSON.parse(e.data)));
   eventSource.addEventListener("reaction",e=>updateMessageReactions(JSON.parse(e.data)));
-  eventSource.onerror=()=>{ /* EventSource автоматически переподключится; heartbeat остаётся fallback-синхронизацией */ };
+  eventSource.onerror=()=>{ /* EventSource автоматически переподключится; heartbeat остаётся fallback-СИНХРОНизацией */ };
   clearInterval(window.__cwHeartbeat); window.__cwHeartbeat=setInterval(async()=>{try{const h=await api(`/api/rooms/${code}/heartbeat`,{method:"POST"});if(h.user){me=h.user;document.querySelectorAll(".level-badge").forEach(x=>x.textContent=`ур. ${me.level}`)} if(h.state && h.state.stateBy!==me?.id) applyRemoteState(h.state)}catch{}},5000);
   clearInterval(window.__cwMessageRefresh); window.__cwMessageRefresh=setInterval(async()=>{
     if(document.hidden || !room?.code)return;
@@ -525,14 +525,14 @@ function initMobileRoomSplit(){
 function toast(message){
   let t=document.querySelector(".cw-toast");
   if(!t){t=document.createElement("div");t.className="toast cw-toast";t.setAttribute("role","status");document.body.appendChild(t)}
-  t.innerHTML=`<span>${cwIcon("check",15)}</span><div><strong>${esc(message)}</strong><small>Всё идёт по плану</small></div>`;
+  t.innerHTML=`<span>${cwIcon("check",15)}</span><div><strong>${esc(message)}</strong><small>СЮЖЕТ ПРОДОЛЖАЕТСЯ</small></div>`;
   t.classList.remove("show");void t.offsetWidth;t.classList.add("show");clearTimeout(t._t);t._t=setTimeout(()=>{t.classList.remove("show");setTimeout(()=>t.remove(),320)},2700);
 }
 function openCreatorPanel(code){
   document.querySelector(".creator-modal")?.remove();
   const modal=document.createElement("div"); modal.className="creator-modal";
   modal.innerHTML=`<div class="creator-card"><button class="creator-close">×</button><div class="eyebrow">CHEBUREKWATCH · CREATOR</div><h2>Создатель</h2><p class="creator-sub">За этой чебуречной стоят:</p><div class="creator-names">
-    <div class="creator-name">Чат жпт</div><div class="creator-name">ручки мэтью</div><div class="creator-name">дмитрий нагиев</div><div class="creator-name">мафаня</div><div class="creator-name">влад dior <button class="secret-trigger" type="button">armain <span>✦</span></button></div><div class="creator-name">андрей ноилз</div>
+    <div class="creator-name">РЕПЛИКИ жпт</div><div class="creator-name">ручки мэтью</div><div class="creator-name">дмитрий нагиев</div><div class="creator-name">мафаня</div><div class="creator-name">влад dior <button class="secret-trigger" type="button">armain <span>✦</span></button></div><div class="creator-name">андрей ноилз</div>
   </div><div class="creator-tools" hidden><div class="creator-tool-grid"><label>Уровень<input id="creatorLevel" type="number" min="1" max="10000" placeholder="например 25"></label><label>Минуты<input id="creatorMinutes" type="number" min="0" max="100000" placeholder="например 500"></label></div><div class="creator-tool-actions"><button class="secondary" id="grantLevel">Выдать уровень</button><button class="secondary" id="grantXp">Выдать XP</button><button class="secondary" id="grantAch">Все достижения</button><button class="primary" id="grantBaby">🍼 Бэйби</button></div><small>Creator Tools доступны только создателю этой комнаты.</small></div><div class="creator-quote">«Смотрим красиво. Ломаем скуку. Чебурек — это состояние души.»</div></div>`;
   document.body.appendChild(modal);
   modal.addEventListener("click",e=>{if(e.target===modal||e.target.closest(".creator-close"))modal.remove()});
@@ -579,8 +579,8 @@ function syncOverlayMessages(){const src=$("#messages"),dst=$("#overlayMessages"
 function mountMedia(){
   player=null;vkPlayer=null;localVideo=null;lastYTPosition=null;lastVKPosition=null;lastAppliedSeq=0;remoteApplyUntil=0;
   const box=$("#videobox");if(!box)return;const current=room.media;
-  const label=current?(current.type==="youtube"?"YouTube":current.type==="vk"?"VK Video":"Видео"):"Фильм не выбран";
-  box.innerHTML=playerHtml(current)+`<div class="movie-label"><span>СЕЙЧАС СМОТРИМ</span><strong>${esc(label)}</strong></div><div class="player-overlay" id="playerOverlay"><button type="button" class="player-chat-toggle" id="playerChatToggle">${cwIcon("chat")}</button><button type="button" class="player-fullscreen" id="playerFullscreen">${cwIcon("expand")}</button><div class="overlay-chat" id="overlayChat"><div class="overlay-head"><b>Чат</b><button id="overlayClose">×</button></div><div class="overlay-messages" id="overlayMessages"></div><form id="overlayForm"><input id="overlayInput" maxlength="500" placeholder="Написать сообщение…"><button type="submit">${cwIcon("send",17)}</button></form></div></div>`;
+  const label=current?(current.type==="youtube"?"YouTube":current.type==="vk"?"VK Video":"Видео"):"Кадр не выбран";
+  box.innerHTML=playerHtml(current)+`<div class="movie-label"><span>СЕЙЧАС СМОТРИМ</span><strong>${esc(label)}</strong></div><div class="player-overlay" id="playerOverlay"><button type="button" class="player-chat-toggle" id="playerChatToggle">${cwIcon("chat")}</button><button type="button" class="player-fullscreen" id="playerFullscreen">${cwIcon("expand")}</button><div class="overlay-chat" id="overlayChat"><div class="overlay-head"><b>РЕПЛИКИ</b><button id="overlayClose">×</button></div><div class="overlay-messages" id="overlayMessages"></div><form id="overlayForm"><input id="overlayInput" maxlength="500" placeholder="Написать сообщение…"><button type="submit">${cwIcon("send",17)}</button></form></div></div>`;
   setupPlayerOverlay();
   
   if(!current){return;}
@@ -735,7 +735,7 @@ function initCinematicIntro(){
   const reduced=window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
   const returning=sessionStorage.getItem("cw-seen-intro");
   const intro=document.createElement("div");intro.className="intro";intro.setAttribute("aria-label","CheburekWatch загружается");
-  intro.innerHTML=`<div class="intro-ambient"></div><div class="intro-grain"></div><div class="intro-logo">${logoHtml()}<span>Совместный кинопросмотр</span><i></i></div><div class="intro-progress"><i></i></div>`;
+  intro.innerHTML=`<div class="intro-ambient"></div><div class="intro-grain"></div><div class="intro-logo">${logoHtml()}<span>СИНХРОННАЯ ЭКРАННАЯ АРКА</span><i></i></div><div class="intro-progress"><i></i></div>`;
   document.body.appendChild(intro);
   const hold=reduced?100:(returning?850:2100);
   setTimeout(()=>intro.classList.add("is-leaving"),hold);
