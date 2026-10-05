@@ -2248,3 +2248,82 @@ button:focus-visible,a:focus-visible,input:focus-visible{
   .cinema-intro-progress span{animation:none!important;transform:scaleX(1)!important}
   .cinema-intro-center,.cinema-intro-enter{animation:none!important}
 }
+
+
+/* ---------------- Movie switch button polish ---------------- */
+.roomlayout.mobile-resizable .mobile-media-toggle{
+  position:relative!important;
+  isolation:isolate!important;
+  overflow:hidden!important;
+  height:42px!important;
+  min-height:42px!important;
+  padding:0 18px!important;
+  gap:8px!important;
+  border:1px solid rgba(255,91,108,.42)!important;
+  border-radius:13px!important;
+  background:
+    radial-gradient(circle at 18% 0%,rgba(255,113,128,.20),transparent 42%),
+    linear-gradient(135deg,#2a0d12 0%,#55131b 48%,#21090d 100%)!important;
+  color:#fff5f6!important;
+  font:800 12px/1 system-ui,sans-serif!important;
+  letter-spacing:.035em!important;
+  text-transform:none!important;
+  box-shadow:
+    inset 0 1px rgba(255,255,255,.14),
+    inset 0 -10px 25px rgba(0,0,0,.16),
+    0 8px 28px rgba(255,45,63,.16)!important;
+  transition:transform .22s ease,box-shadow .22s ease,border-color .22s ease,filter .22s ease!important;
+}
+.roomlayout.mobile-resizable .mobile-media-toggle::before{
+  content:"";
+  position:absolute;
+  inset:0;
+  z-index:-1;
+  background:linear-gradient(105deg,transparent 25%,rgba(255,255,255,.18) 50%,transparent 75%);
+  transform:translateX(-120%);
+  transition:transform .65s ease;
+}
+.roomlayout.mobile-resizable .mobile-media-toggle::after{
+  content:"";
+  position:absolute;
+  left:14px;
+  right:14px;
+  bottom:4px;
+  height:1px;
+  background:linear-gradient(90deg,transparent,rgba(255,133,145,.65),transparent);
+  opacity:.7;
+}
+.roomlayout.mobile-resizable .mobile-media-toggle:hover{
+  transform:translateY(-2px)!important;
+  border-color:rgba(255,111,126,.72)!important;
+  filter:brightness(1.08)!important;
+  box-shadow:
+    inset 0 1px rgba(255,255,255,.18),
+    0 12px 34px rgba(255,42,62,.24),
+    0 0 24px rgba(255,61,79,.10)!important;
+}
+.roomlayout.mobile-resizable .mobile-media-toggle:hover::before{
+  transform:translateX(120%);
+}
+.roomlayout.mobile-resizable .mobile-media-toggle:active{
+  transform:translateY(0) scale(.975)!important;
+  box-shadow:inset 0 2px 8px rgba(0,0,0,.24),0 5px 18px rgba(255,42,62,.16)!important;
+}
+.roomlayout.mobile-resizable .mobile-media-plus{
+  width:24px!important;
+  height:24px!important;
+  margin:0!important;
+  display:grid!important;
+  place-items:center!important;
+  border-radius:8px!important;
+  background:linear-gradient(145deg,#ff5d6a,#b72b37)!important;
+  border:1px solid rgba(255,255,255,.18)!important;
+  color:#fff!important;
+  font-size:18px!important;
+  line-height:1!important;
+  box-shadow:0 4px 14px rgba(255,45,63,.28),inset 0 1px rgba(255,255,255,.25)!important;
+}
+.roomlayout.mobile-resizable .mobile-media-toggle > span:last-child{
+  position:relative!important;
+  z-index:1!important;
+}
