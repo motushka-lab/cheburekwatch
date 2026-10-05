@@ -194,6 +194,10 @@ async function telegramApi(method, body={}, timeoutMs=35000) {
   if (!TELEGRAM_BOT_TOKEN) throw new Error("Telegram bot token is not configured");
   return telegramRequest(`${TELEGRAM_BOT_API_BASE}/bot${TELEGRAM_BOT_TOKEN}/${method}`, body, timeoutMs);
 }
+function telegramErrorMessage(error) {
+  const message = String(error?.message || error);
+  return TELEGRAM_BOT_TOKEN ? message.split(TELEGRAM_BOT_TOKEN).join("[redacted]") : message;
+}
 async function telegramSay(chatId, text) {
   try {
     await telegramApi("sendMessage", {
@@ -202,7 +206,7 @@ async function telegramSay(chatId, text) {
       disable_web_page_preview:true
     }, 12000);
   } catch (e) {
-    console.warn("Telegram sendMessage failed:", e.message);
+    console.warn("Telegram sendMessage failed:", telegramErrorMessage(e));
   }
 }
 function telegramIsAdmin(message) {
@@ -297,7 +301,7 @@ ${TELEGRAM_USING_OFFICIAL ? "Файлы до 20 МБ. Для больших фа
         const filePath = await resolveTelegramFile(entry);
         if (path.isAbsolute(filePath)) entry.localFilePath = filePath;
       } catch (error) {
-        console.warn("Telegram library download failed:", error.name);
+        console.warn("Telegram library download failed:", telegramErrorMessage(error));
         return telegramSay(chatId, "Не удалось подготовить видео. Проверьте Local Bot API и свободное место на диске, затем отправьте файл повторно. Запись не добавлена.");
       }
     }
@@ -329,7 +333,7 @@ async function startTelegramBot() {
     const me = await telegramApi("getMe",{},12000);
     console.log(`Telegram library bot ready: @${me?.username || "bot"}`);
   } catch(e) {
-    console.warn("Telegram bot could not start:", e.message);
+    console.warn("Telegram bot could not start:", telegramErrorMessage(e));
     telegramPolling = false;
     setTimeout(() => startTelegramBot().catch(() => {}), 5000).unref();
     return;
@@ -344,11 +348,11 @@ async function startTelegramBot() {
       for (const update of Array.isArray(updates)?updates:[]) {
         telegramUpdateOffset = Math.max(telegramUpdateOffset, Number(update.update_id || 0) + 1);
         try { await handleTelegramMessage(update.message); }
-        catch(e) { console.warn("Telegram update failed:", e.message); }
+        catch(e) { console.warn("Telegram update failed:", telegramErrorMessage(e)); }
       }
     } catch(e) {
       if (!telegramPolling) break;
-      console.warn("Telegram polling:", e.message);
+      console.warn("Telegram polling:", telegramErrorMessage(e));
       await new Promise(r=>setTimeout(r,2500));
     }
   }
@@ -1270,7 +1274,7 @@ app.get("/api/library/telegram/:entryId/:name", requireAuth, async (req, res) =>
     }
     res.end();
   } catch(e) {
-    console.warn("Telegram media proxy failed:", e.message);
+    console.warn("Telegram media proxy failed:", telegramErrorMessage(e));
     if (!res.headersSent) res.status(502).end();
     else res.end();
   }
@@ -1518,7 +1522,7 @@ app.get("*", (req, res) => res.sendFile(path.join(__dirname, "public", "index.ht
 
 const server = app.listen(PORT, HOST, () => {
   console.log(`CheburekWatch listening on ${HOST}:${PORT}`);
-  startTelegramBot().catch(e=>console.warn("Telegram bot start failed:",e.message));
+  startTelegramBot().catch(e=>console.warn("Telegram bot start failed:",telegramErrorMessage(e)));
 });
 
 function shutdown(signal) {

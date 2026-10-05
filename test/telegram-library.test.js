@@ -77,7 +77,7 @@ test("large Telegram upload, authenticated playback, seek and restart", { timeou
       getFiles++;
       if (body.file_id === "large") await downloading;
       if (body.file_id === "bad") return res.end(JSON.stringify({ ok:false, description:"download failed" }));
-      result = { file_path:body.file_id === "outside" ? outside : video };
+      result = { file_path:body.file_id === "outside" ? outside : body.file_id === "missing" ? path.join(localDir, "123:fake", "gone.mp4") : video };
     } else { res.statusCode = 404; return res.end(); }
     res.setHeader("Content-Type", "application/json");
     res.end(JSON.stringify({ ok:true, result }));
@@ -169,12 +169,15 @@ test("large Telegram upload, authenticated playback, seek and restart", { timeou
     upload("Outside", "outside");
     await until(() => messages.filter(text => text.includes("Запись не добавлена")).length === 2);
     assert.equal((await library()).items.length, 1);
+    upload("Missing", "missing");
+    await until(() => messages.filter(text => text.includes("Запись не добавлена")).length === 3);
+    assert.equal((await library()).items.length, 1);
   });
   await t.test("disk capacity is checked before downloading", async () => {
     const disk = await fs.statfs(localDir);
     upload("No space", "no-space", 7, Number(disk.bavail) * Number(disk.bsize) + 1);
     await until(() => messages.some(text => text.includes("Недостаточно места")));
-    assert.equal(getFiles, 3);
+    assert.equal(getFiles, 4);
     assert.equal((await library()).items.length, 1);
   });
   await t.test("persistent library and video survive an application restart", async () => {
@@ -185,7 +188,7 @@ test("large Telegram upload, authenticated playback, seek and restart", { timeou
     const response = await fetch(base + mediaUrl, { headers:{ Cookie:"sid=session", Range:"bytes=-5" } });
     assert.equal(response.status, 206);
     assert.equal(await response.text(), "END!!");
-    assert.equal(getFiles, 3);
+    assert.equal(getFiles, 4);
   });
   assert.ok(!output.includes("123:fake"));
 });
