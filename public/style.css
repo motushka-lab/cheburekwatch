@@ -2115,3 +2115,18 @@ body.manga-mode .episode-region-note{
   body.manga-mode .archive-hero h1{padding:8px 10px!important;border-width:3px!important;box-shadow:4px 4px 0 #050505!important}
   body.manga-mode .archive-hero .hero-content>p{max-width:100%!important;margin-top:13px!important;box-shadow:3px 3px 0 #050505!important}
 }
+
+/* v50 — Telegram library tab */
+.media-source-tabs{grid-template-columns:repeat(3,minmax(0,1fr))}
+.library-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}
+.library-head h3{margin-top:4px}
+.library-status{padding:4px 0 10px;color:var(--muted);font-size:9px}
+.library-list{display:grid;gap:7px;max-height:400px;overflow:auto}
+.library-item{appearance:none;display:grid;grid-template-columns:46px 1fr 24px;gap:10px;align-items:center;padding:9px;border:1px solid #3a3243;background:#100d15;color:var(--paper);text-align:left;cursor:pointer}
+.library-item:hover,.library-item.selected{border-color:#9b72ba;background:#18101f}
+.library-episode{display:grid;place-items:center;width:46px;height:46px;border:1px solid #55435f;background:#09070c;font-family:var(--manga-head);font-style:italic}
+.library-copy{min-width:0}.library-copy strong{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.library-copy small{display:block;margin-top:4px;color:var(--muted);font-size:8px}
+.library-empty{padding:18px;border:1px dashed #44384e;color:var(--muted);text-align:center;font-size:9px}
+body.manga-mode .library-item{background:#fff!important;color:#050505!important;border:3px solid #050505!important}
+body.manga-mode .library-item.selected,body.manga-mode .library-item:hover{background:#050505!important;color:#fff!important}
+@media(max-width:700px){.media-source-tabs button{font-size:7px;padding:10px 4px}.library-item{grid-template-columns:40px 1fr 22px}.library-episode{width:40px;height:40px}}
