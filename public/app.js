@@ -589,7 +589,7 @@ function bindVkSearch(root,{onPick,onAnime}={}){
         <div class="episode-picker">
           <div class="episode-picker-head"><div><span class="eyebrow">ЭПИЗОД</span><b>КАКУЮ СЕРИЮ СМОТРИМ?</b></div><div class="episode-page-controls"><button class="btn btn-icon" type="button" data-episode-prev>${cwIcon("back",15)}</button><span data-episode-range></span><button class="btn btn-icon" type="button" data-episode-next>${cwIcon("arrow",15)}</button></div></div>
           <div class="episode-grid" data-episode-grid></div>
-          <div class="episode-status" data-episode-status>Нажмите номер серии — CheburekWatch попробует открыть её прямо в комнате.</div>
+          <div class="episode-status" data-episode-status>Нажмите номер серии — она откроется прямо в комнате.</div><div class="episode-region-note">Доступность зависит от региона. Если сам плеер Bilibili не открывается в вашей сети, может понадобиться VPN.</div>
         </div>`;
 
       const epGrid=animeSelected.querySelector("[data-episode-grid]");
@@ -607,7 +607,7 @@ function bindVkSearch(root,{onPick,onAnime}={}){
           }});
           const src=data.source;
           if(!src?.url)throw new Error("Источник не найден");
-          epStatus.innerHTML=`${cwIcon("check",14)} Серия ${episode} готова к просмотру.`;
+          epStatus.innerHTML=`${cwIcon("check",14)} Серия ${episode} готова к просмотру.${src.regionLimited?" Возможны региональные ограничения.":""}`;
           onPick?.({title:`${item.title} · серия ${episode}`,player:src.url,thumbnail:src.thumbnail||item.poster,duration:src.duration||0,views:0,provider:"episode"});
         }catch(err){
           epStatus.innerHTML=`<span class="error-inline">${esc(err.message)}</span>`;
@@ -823,12 +823,13 @@ function playerHtml(media){
   if(media.type==="youtube")return `<div class="player-frame yt-stage" id="yt"><div class="player-loading">Подключаем видео…</div></div>`;
   if(media.type==="vk")return `<iframe class="player-frame" id="vkframe" allow="autoplay; encrypted-media; fullscreen; picture-in-picture" allowfullscreen src="${esc(media.url)}"></iframe>`;
   if(media.type==="rutube")return `<iframe class="player-frame" id="rutubeframe" allow="clipboard-write; autoplay; fullscreen; picture-in-picture" allowfullscreen src="${esc(media.url)}"></iframe>`;
+  if(media.type==="bilibili")return `<iframe class="player-frame bilibili-frame" id="bilibiliframe" allow="autoplay; encrypted-media; fullscreen; picture-in-picture" allowfullscreen referrerpolicy="strict-origin-when-cross-origin" src="${esc(media.url)}"></iframe>`;
   return `<video class="player-frame" id="htmlvideo" playsinline preload="metadata" controls src="${esc(media.url)}"></video>`;
 }
 async function roomPage(code){
   try{
     const d=await api(`/api/rooms/${encodeURIComponent(code)}`);room=d.room;
-    const people=room.users||[],label=room.media?(room.media.type==="youtube"?"YouTube":room.media.type==="vk"?"VK Video":room.media.type==="rutube"?"RUTUBE":"Видео"):"Кадр не выбран";
+    const people=room.users||[],label=room.media?(room.media.type==="youtube"?"YouTube":room.media.type==="vk"?"VK Video":room.media.type==="bilibili"?"Аниме":room.media.type==="rutube"?"RUTUBE":"Видео"):"Кадр не выбран";
     shell(`<main class="watch-page"><div class="watch-header container"><a class="btn btn-ghost" href="/rooms" data-nav>${cwIcon("back")}<span>Комнаты</span></a><div class="room-title"><div><h3>Комната ${esc(room.code)}</h3><span>${people.length} ${people.length===1?"участник":"участников"} сейчас</span></div></div><div class="participant-stack">${people.slice(0,3).map(u=>avatarHtml(u.nickname)).join("")}${people.length>3?`<span>+${people.length-3}</span>`:""}</div></div>
       <div class="watch-layout container roomlayout ${room.media?"has-media":"needs-media"}"><section class="player-column"><div class="player video-shell" id="videobox">${playerHtml(room.media)}<div class="movie-label"><span>${room.media?"ИСТОЧНИК АКТИВИРОВАН":"КАДР ЕЩЁ НЕ ВЫБРАН"}</span><strong>${esc(label)}</strong></div><div class="player-overlay" id="playerOverlay"><button type="button" class="player-chat-toggle" id="playerChatToggle">${cwIcon("chat")}</button><button type="button" class="player-fullscreen" id="playerFullscreen">${cwIcon("expand")}</button><div class="overlay-chat" id="overlayChat"><div class="overlay-head"><b>РЕПЛИКИ</b><button id="overlayClose">×</button></div><div class="overlay-messages" id="overlayMessages"></div><form id="overlayForm"><input id="overlayInput" maxlength="500" placeholder="Написать сообщение…"><button type="submit">${cwIcon("send",17)}</button></form></div></div></div>
       <div class="player-controls"><button class="btn btn-icon" id="seekBack" aria-label="Назад на 10 секунд">${cwIcon("back")}</button><button class="btn btn-icon" id="playerToggle" aria-label="Воспроизвести">${cwIcon(room.playing?"pause":"play")}</button><span class="player-sync-note">СИНХРОН</span><button class="btn btn-icon" aria-label="Громкость">${cwIcon("sound")}</button><button class="btn btn-icon" id="playerFullscreenBottom" aria-label="На весь экран">${cwIcon("expand")}</button></div>
@@ -836,7 +837,7 @@ async function roomPage(code){
       <div class="movie-selector" id="movieSelector" hidden><div class="selector-head"><div><span class="eyebrow">НОВЫЙ КАДР</span><h3>НАЙТИ ИЛИ ВСТАВИТЬ</h3></div><button class="btn btn-icon" id="movieSelectorClose">${cwIcon("close")}</button></div>
       ${vkSearchPanelHtml("roomVkSearch")}
       <div class="selector-divider"><span>или ссылка вручную</span></div>
-      <p class="selector-note">YouTube, VK Video или прямая ссылка на видео. Изменение синхронизируется для комнаты.</p><form id="mediaform" class="mediaform"><input id="mediaurl" placeholder="YouTube / VK / прямая ссылка" required><button class="btn btn-primary">${cwIcon("play")}<span class="btn-label">ЗАПУСТИТЬ КАДР</span></button></form><div id="mediaerr"></div></div>
+      <p class="selector-note">Аниме-ссылка Bilibili, YouTube, VK Video или прямой файл. Изменение синхронизируется для комнаты.</p><form id="mediaform" class="mediaform"><input id="mediaurl" placeholder="Bilibili / YouTube / VK / прямая ссылка" required><button class="btn btn-primary">${cwIcon("play")}<span class="btn-label">ЗАПУСТИТЬ КАДР</span></button></form><div id="mediaerr"></div></div>
       </section>
       <aside class="chat-panel"><div class="chat-head"><div><h3>РЕПЛИКИ</h3><span>${people.length} в комнате</span></div><div class="chat-head-actions"><button class="btn btn-ghost" id="invite">ПОЗВАТЬ</button><button class="btn btn-icon" id="peopleToggle" aria-label="Участники">${cwIcon("users")}</button></div></div>
       <div class="participants-popover" id="peoplePopover" hidden><div id="people">${peopleHtml(people)}</div>${room.ownerId===me.id?`<button id="deleteRoom" class="btn btn-ghost danger-text">Удалить комнату</button>`:""}<button id="creatorBtn" class="btn btn-ghost">Создатель</button></div>
@@ -989,9 +990,10 @@ function syncOverlayMessages(){const src=$("#messages"),dst=$("#overlayMessages"
 function mountMedia(){
   player=null;vkPlayer=null;localVideo=null;rutubeFrame=null;rutubePosition=0;rutubeReady=false;rutubePlaying=false;lastRutubePosition=null;lastYTPosition=null;lastVKPosition=null;lastAppliedSeq=0;remoteApplyUntil=0;
   const box=$("#videobox");if(!box)return;const current=room.media;
-  const label=current?(current.type==="youtube"?"YouTube":current.type==="vk"?"VK Video":current.type==="rutube"?"RUTUBE":"Видео"):"Кадр не выбран";
+  const label=current?(current.type==="youtube"?"YouTube":current.type==="vk"?"VK Video":current.type==="bilibili"?"Аниме":current.type==="rutube"?"RUTUBE":"Видео"):"Кадр не выбран";
   box.innerHTML=playerHtml(current)+`<div class="movie-label"><span>СЕЙЧАС СМОТРИМ</span><strong>${esc(label)}</strong></div><div class="player-overlay" id="playerOverlay"><button type="button" class="player-chat-toggle" id="playerChatToggle">${cwIcon("chat")}</button><button type="button" class="player-fullscreen" id="playerFullscreen">${cwIcon("expand")}</button><div class="overlay-chat" id="overlayChat"><div class="overlay-head"><b>РЕПЛИКИ</b><button id="overlayClose">×</button></div><div class="overlay-messages" id="overlayMessages"></div><form id="overlayForm"><input id="overlayInput" maxlength="500" placeholder="Написать сообщение…"><button type="submit">${cwIcon("send",17)}</button></form></div></div>`;
   setupPlayerOverlay();
+  updateExternalPlayerControls();
   
   if(!current){return;}
   if(current.type==="youtube"){
@@ -1010,6 +1012,13 @@ function mountMedia(){
     localVideo.addEventListener("loadedmetadata",()=>{applyRemoteState(room)});
     
   }
+}
+function updateExternalPlayerControls(){
+  const external=room?.media?.type==="bilibili";
+  const toggle=$("#playerToggle"),back=$("#seekBack"),note=document.querySelector(".player-sync-note");
+  if(toggle){toggle.disabled=external;toggle.title=external?"Управление воспроизведением находится внутри аниме-плеера":""}
+  if(back){back.disabled=external;back.title=external?"Перемотка находится внутри аниме-плеера":""}
+  if(note)note.textContent=external?"СЕРИЯ СИНХРОНИЗИРОВАНА":"СИНХРОН";
 }
 function setupPlayerOverlay(){
   $("#playerChatToggle")?.addEventListener("click",()=>$("#overlayChat")?.classList.toggle("open"));
