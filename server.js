@@ -1176,6 +1176,21 @@ app.post("/api/anime/episode-source", requireAuth, async (req, res) => {
   return res.status(410).json({ error:"Запись библиотеки повреждена. Перешлите серию боту заново." });
 });
 
+app.get("/api/anime/library", requireAuth, (req, res) => {
+  const proto = String(req.headers["x-forwarded-proto"] || req.protocol || "https").split(",")[0].trim();
+  const host = req.get("host");
+  const items = [...db.animeLibrary].sort((a,b)=>String(a.title||"").localeCompare(String(b.title||""),"ru") || Number(a.episode||0)-Number(b.episode||0)).map(entry=>{
+    let url = String(entry.url || "");
+    if (entry.kind === "telegram") {
+      const safeName = String(entry.fileName || "episode.mp4").replace(/[^A-Za-z0-9._-]/g,"_");
+      const ext = /\.(mp4|webm|ogg)$/i.test(safeName) ? "" : ".mp4";
+      url = `${proto}://${host}/api/library/telegram/${entry.id}/${safeName}${ext}`;
+    }
+    return { id:entry.id, title:String(entry.title||""), episode:Number(entry.episode||1), kind:entry.kind==="telegram"?"video":"link", url, fileName:entry.kind==="telegram"?String(entry.fileName||""):"" };
+  }).filter(x=>x.url);
+  res.json({count:items.length,items});
+});
+
 // Secure same-origin proxy: Telegram bot token never reaches the browser.
 app.get("/api/library/telegram/:entryId/:name", requireAuth, async (req, res) => {
   const entry = db.animeLibrary.find(x => x.id === req.params.entryId && x.kind === "telegram");
