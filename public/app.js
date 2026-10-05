@@ -572,4 +572,19 @@ async function render(){
     render();
   }
 }
-(async()=>{try{me=(await api("/api/me")).user}catch{};render()})();
+
+function initCinematicIntro(){
+  if(document.querySelector(".cw-intro"))return;
+  const reduced=window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
+  const returning=sessionStorage.getItem("cw-seen-intro");
+  const intro=document.createElement("div");
+  intro.className="cw-intro";
+  intro.setAttribute("aria-label","CheburekWatch загружается");
+  intro.innerHTML='<div class="cw-intro-ambient"></div><div class="cw-intro-grain"></div><div class="cw-intro-logo"><div class="cw-intro-mark">Ч</div><div class="cw-intro-name">CHEBUREK<b>WATCH</b></div><div class="cw-intro-sub">совместный кинопросмотр</div></div><div class="cw-intro-line"></div>';
+  document.body.appendChild(intro);
+  const hold=reduced?120:(returning?650:1850);
+  setTimeout(()=>intro.classList.add("is-leaving"),hold);
+  setTimeout(()=>{intro.remove();sessionStorage.setItem("cw-seen-intro","1")},hold+(reduced?40:700));
+}
+
+(async()=>{initCinematicIntro();try{me=(await api("/api/me")).user}catch{};render()})();
