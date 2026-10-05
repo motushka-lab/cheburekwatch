@@ -2,7 +2,9 @@
 
 ## Важный момент
 
-Это не статический сайт. GitHub Pages не запускает Node.js/Express API, авторизацию и SSE, поэтому проект должен запускаться как Node.js Web Service. GitHub при этом остаётся репозиторием исходников.
+Это не статический сайт. GitHub Pages не запускает Node.js/Express API, авторизацию и SSE. Проект запускается как Docker Web Service вместе с Local Telegram Bot API. GitHub остаётся репозиторием исходников.
+
+Если CheburekWatch уже работает на Render, используй [инструкцию обновления существующего сервиса](TELEGRAM_LARGE_FILES.md), чтобы сохранить его базу и диск.
 
 В репозитории уже есть `render.yaml`, поэтому после загрузки кода можно создать Render Blueprint из репозитория.
 
@@ -16,6 +18,9 @@ package.json
 package-lock.json
 public/
 render.yaml
+Dockerfile
+scripts/
+lib/
 .github/
 ```
 
@@ -35,15 +40,17 @@ data/db.json
 
 `render.yaml` настроит:
 
-- Node.js Web Service;
-- `npm ci` как build command;
-- `npm start` как start command;
+- Docker Web Service с сайтом и Local Telegram Bot API;
+- сборку официального Telegram API и установку npm-зависимостей;
+- `node scripts/start-container.js` как команду контейнера;
 - `/health` как health check;
 - `NODE_ENV=production`;
-- persistent disk размером 1 GB;
+- 2 ГБ памяти и persistent disk размером 20 ГБ (платная конфигурация);
 - `DATA_DIR=/var/data`.
 
 Persistent disk нужен, потому что без него изменения файловой системы Render теряются при redeploy/restart. Текущая версия приложения хранит данные в `data/db.json`.
+
+Для бота нужны четыре секрета: `TELEGRAM_BOT_TOKEN`, `TELEGRAM_ADMIN_ID`, `TELEGRAM_API_ID`, `TELEGRAM_API_HASH`. Их вводят в Render Environment; в GitHub их не сохраняют.
 
 ## 3. После deploy
 
@@ -74,7 +81,7 @@ Persistent disk нужен, потому что без него изменени
 После изменения кода:
 
 ```text
-GitHub commit/push → Render automatic deploy → npm ci → npm start
+GitHub commit/push → Render automatic deploy → Docker build → сайт + Local Bot API
 ```
 
 `.github/workflows/check.yml` дополнительно проверяет синтаксис Node.js-файлов на каждом push и pull request.

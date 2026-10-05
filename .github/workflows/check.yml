@@ -11,8 +11,32 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
       - run: npm ci
       - run: node --check server.js
       - run: node --check public/app.js
+      - run: node --check scripts/start-container.js
+      - run: npm test
+
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          load: true
+          tags: cheburekwatch:test
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - run: docker run --rm --entrypoint telegram-bot-api cheburekwatch:test --version
+      - run: |
+          docker run -d --name cw -p 3000:3000 -e TELEGRAM_LOCAL_API=false cheburekwatch:test
+          trap 'docker logs cw; docker rm -f cw' EXIT
+          for attempt in $(seq 1 30); do
+            if curl --fail http://127.0.0.1:3000/health; then exit 0; fi
+            sleep 1
+          done
+          exit 1
