@@ -264,6 +264,27 @@ function validateVideo(raw) {
     throw new Error("Поддерживаются VK Video ссылки вида /video-OWNER_VIDEO");
   }
 
+  if (host === "bilibili.com" || host === "m.bilibili.com" || host === "player.bilibili.com") {
+    let episodeId = "";
+    let seasonId = "";
+    const epMatch = u.pathname.match(/\/bangumi\/play\/ep(\d+)/i);
+    const ssMatch = u.pathname.match(/\/bangumi\/play\/ss(\d+)/i);
+    if (epMatch) episodeId = epMatch[1];
+    if (ssMatch) seasonId = ssMatch[1];
+    if (host === "player.bilibili.com") {
+      episodeId = u.searchParams.get("episodeId") || u.searchParams.get("ep_id") || episodeId;
+      seasonId = u.searchParams.get("seasonId") || u.searchParams.get("season_id") || seasonId;
+    }
+    if (!/^\d+$/.test(episodeId)) throw new Error("Нужна ссылка на конкретный эпизод Bilibili");
+    const embed = new URL("https://player.bilibili.com/player.html");
+    if (seasonId) embed.searchParams.set("seasonId", seasonId);
+    embed.searchParams.set("episodeId", episodeId);
+    embed.searchParams.set("autoplay", "0");
+    embed.searchParams.set("danmaku", "0");
+    embed.searchParams.set("poster", "1");
+    return { type:"bilibili", url:embed.href, sourceUrl:u.href, episodeId, seasonId:seasonId || null };
+  }
+
   if (host === "rutube.ru" || host === "www.rutube.ru") {
     const parts = u.pathname.split("/").filter(Boolean);
     let videoId = "";
@@ -282,7 +303,7 @@ function validateVideo(raw) {
   if (directExt.test(u.pathname + u.search)) {
     return { type: "direct", url: u.href, sourceUrl: u.href };
   }
-  throw new Error("Ссылка не поддерживается. Используйте YouTube, VK Video или .mp4/.webm/.ogg");
+  throw new Error("Ссылка не поддерживается. Используйте Bilibili, YouTube, VK Video или .mp4/.webm/.ogg");
 }
 
 app.disable("x-powered-by");
@@ -597,6 +618,151 @@ async function fetchRutubeCandidates(query, signal) {
   if (lastError?.name === "AbortError") throw lastError;
   return [];
 }
+const BILI_MIXIN_KEY_ENC_TAB = [
+  46,47,18,2,53,8,23,32,15,50,10,31,58,3,45,35,27,43,5,49,33,9,42,19,29,28,14,39,12,38,41,13,
+  37,48,7,16,24,55,40,61,26,17,0,1,60,51,30,4,22,25,54,21,56,59,6,63,57,62,11,36,20,34,44,52
+];
+let biliWbiCache = { imgKey:"", subKey:"", expiresAt:0 };
+
+function decodeBasicHtml(value) {
+  return String(value || "")
+    .replace(/<[^>]*>/g, "")
+    .replace(/&quot;/g, '"').replace(/&#39;/g, "'")
+    .replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">");
+}
+function normalizeSearchTitle(value) {
+  return decodeBasicHtml(value).toLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ").trim();
+}
+function scoreBiliSeason(item, aliases) {
+  const title = normalizeSearchTitle(item?.title);
+  const original = normalizeSearchTitle(item?.org_title || item?.season_title);
+  if (!title && !original) return -999;
+  let score = 0;
+  for (const alias of aliases) {
+    const a = normalizeSearchTitle(alias);
+    if (!a) continue;
+    if (title === a || original === a) score += 20;
+    else if (title.includes(a) || original.includes(a) || a.includes(title)) score += 9;
+    const tokens = a.split(" ").filter(x => x.length >= 3);
+    for (const token of new Set(tokens)) {
+      if (title.includes(token) || original.includes(token)) score += 1.5;
+    }
+  }
+  if (Number(item?.season_type) === 1) score += 4;
+  if (Number(item?.season_type) === 4) score += 1;
+  return score;
+}
+async function biliFetchJson(url, signal) {
+  const response = await fetch(url, {
+    signal,
+    headers:{
+      "Accept":"application/json, text/plain, */*",
+      "Accept-Language":"ru-RU,ru;q=0.8,en;q=0.6",
+      "Referer":"https://www.bilibili.com/",
+      "User-Agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/131 Safari/537.36"
+    }
+  });
+  if (!response.ok) throw new Error("Bilibili HTTP " + response.status);
+  return response.json();
+}
+async function getBiliWbiKeys(signal) {
+  if (biliWbiCache.imgKey && biliWbiCache.expiresAt > Date.now()) return biliWbiCache;
+  const data = await biliFetchJson("https://api.bilibili.com/x/web-interface/nav", signal);
+  const imgUrl = String(data?.data?.wbi_img?.img_url || "");
+  const subUrl = String(data?.data?.wbi_img?.sub_url || "");
+  const takeKey = u => u.split("/").pop()?.split(".")[0] || "";
+  const imgKey = takeKey(imgUrl), subKey = takeKey(subUrl);
+  if (!imgKey || !subKey) throw new Error("Bilibili не выдал ключ поиска");
+  biliWbiCache = { imgKey, subKey, expiresAt:Date.now()+45*60*1000 };
+  return biliWbiCache;
+}
+function signBiliWbi(params, imgKey, subKey) {
+  const source = imgKey + subKey;
+  const mixin = BILI_MIXIN_KEY_ENC_TAB.map(i => source[i] || "").join("").slice(0,32);
+  const clean = {};
+  for (const [k,v] of Object.entries({...params,wts:Math.floor(Date.now()/1000)})) {
+    clean[k] = String(v).replace(/[!'()*]/g,"");
+  }
+  const query = Object.keys(clean).sort().map(k=>encodeURIComponent(k)+"="+encodeURIComponent(clean[k])).join("&");
+  const wRid = crypto.createHash("md5").update(query + mixin).digest("hex");
+  return query + "&w_rid=" + wRid;
+}
+async function searchBiliBangumiOnce(keyword, signal) {
+  const baseParams = { search_type:"media_bangumi", keyword, page:"1" };
+  const old = new URL("https://api.bilibili.com/x/web-interface/search/type");
+  Object.entries(baseParams).forEach(([k,v])=>old.searchParams.set(k,v));
+  try {
+    const data = await biliFetchJson(old, signal);
+    const rows = Array.isArray(data?.data?.result) ? data.data.result : [];
+    if (Number(data?.code) === 0 && rows.length) return rows;
+  } catch {}
+  const keys = await getBiliWbiKeys(signal);
+  const signed = signBiliWbi(baseParams, keys.imgKey, keys.subKey);
+  const data = await biliFetchJson("https://api.bilibili.com/x/web-interface/wbi/search/type?" + signed, signal);
+  return Array.isArray(data?.data?.result) ? data.data.result : [];
+}
+async function searchBiliBangumi(aliases, signal) {
+  const found = new Map();
+  for (const alias of aliases.slice(0,5)) {
+    let rows = [];
+    try { rows = await searchBiliBangumiOnce(alias, signal); } catch {}
+    for (const row of rows) {
+      const sid = Number(row?.pgc_season_id || row?.season_id || 0);
+      if (!sid || found.has(sid)) continue;
+      found.set(sid, row);
+    }
+    if (found.size >= 8) break;
+  }
+  return [...found.values()]
+    .map(item=>({item,score:scoreBiliSeason(item,aliases)}))
+    .sort((a,b)=>b.score-a.score);
+}
+async function getBiliSeason(seasonId, signal) {
+  const u = new URL("https://api.bilibili.com/pgc/view/web/season");
+  u.searchParams.set("season_id", String(seasonId));
+  const data = await biliFetchJson(u, signal);
+  if (Number(data?.code) !== 0 || !data?.result) throw new Error(String(data?.message || "Bilibili не вернул сезон"));
+  return data.result;
+}
+function pickBiliEpisode(season, episodeNumber) {
+  const episodes = Array.isArray(season?.episodes) ? season.episodes : [];
+  if (!episodes.length) return null;
+  const n = Number(episodeNumber);
+  let ep = episodes.find(x => {
+    const t = String(x?.title || "").trim().replace(",",".");
+    const num = Number(t);
+    return Number.isFinite(num) && Math.abs(num-n) < 0.001;
+  });
+  if (!ep) ep = episodes[n-1] || null;
+  return ep;
+}
+async function resolveBiliEpisode(aliases, episode, signal) {
+  const ranked = await searchBiliBangumi(aliases, signal);
+  for (const candidate of ranked.slice(0,5)) {
+    if (candidate.score < 3) continue;
+    const sid = Number(candidate.item?.pgc_season_id || candidate.item?.season_id || 0);
+    if (!sid) continue;
+    try {
+      const season = await getBiliSeason(sid, signal);
+      const ep = pickBiliEpisode(season, episode);
+      const epId = Number(ep?.ep_id || ep?.id || 0);
+      if (!epId) continue;
+      return {
+        seasonId:sid,
+        episodeId:epId,
+        title:String(season?.title || decodeBasicHtml(candidate.item?.title) || aliases[0]),
+        episodeTitle:String(ep?.long_title || ep?.title || episode),
+        thumbnail:String(ep?.cover || season?.cover || ""),
+        regionLimited:Boolean(season?.user_status?.area_limit || ep?.rights?.area_limit),
+        badge:String(ep?.badge_info?.text || ep?.badge || ""),
+        playerUrl:`https://player.bilibili.com/player.html?seasonId=${sid}&episodeId=${epId}&autoplay=0&danmaku=0&poster=1`,
+        pageUrl:`https://www.bilibili.com/bangumi/play/ep${epId}`
+      };
+    } catch {}
+  }
+  return null;
+}
+
 function parseYouTubeDuration(value) {
   const m = String(value || "").match(/^PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?$/);
   if (!m) return 0;
@@ -733,34 +899,32 @@ app.post("/api/anime/episode-source", requireAuth, async (req, res) => {
   if (!aliases.length) return res.status(400).json({ error:"Не удалось определить название аниме" });
 
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 10000);
+  const timer = setTimeout(() => controller.abort(), 12000);
   try {
-    const yt = await searchYouTubeEpisode(aliases, episode, controller.signal);
-    if (!yt.configured) {
-      return res.status(503).json({
-        error:"Поиск серий ещё не подключён: добавьте YOUTUBE_API_KEY в Render.",
-        code:"YOUTUBE_NOT_CONFIGURED"
+    const found = await resolveBiliEpisode(aliases, episode, controller.signal);
+    if (!found) {
+      return res.status(404).json({
+        error:"Эту серию не удалось найти в официальном аниме-плеере. Для некоторых тайтлов доступ зависит от региона.",
+        code:"ANIME_EPISODE_NOT_FOUND"
       });
-    }
-    const ranked = yt.items
-      .map(item => ({item,score:scoreYouTubeEpisode(item,aliases,episode)}))
-      .sort((a,b)=>b.score-a.score);
-    const best = ranked[0];
-    if (!best || best.score < 5) {
-      return res.status(404).json({ error:"Эту серию не удалось уверенно найти в доступном источнике" });
     }
     res.json({
       source:{
-        type:"youtube",
-        url:`https://www.youtube.com/watch?v=${best.item.id}`,
-        title:best.item.title,
-        thumbnail:best.item.thumbnail,
-        duration:best.item.duration
+        type:"bilibili",
+        url:found.pageUrl,
+        embedUrl:found.playerUrl,
+        title:`${found.title} · серия ${episode}`,
+        thumbnail:found.thumbnail,
+        duration:0,
+        regionLimited:found.regionLimited,
+        badge:found.badge
       }
     });
   } catch(error) {
-    const msg = error?.name==="AbortError" ? "Источник отвечает слишком долго" : String(error?.message || "Не удалось найти серию");
-    res.status(502).json({ error:msg, code:error?.code || "EPISODE_SOURCE_ERROR" });
+    const msg = error?.name==="AbortError"
+      ? "Аниме-плеер отвечает слишком долго"
+      : "Не удалось подключиться к аниме-плееру";
+    res.status(502).json({ error:msg, code:"ANIME_PROVIDER_ERROR" });
   } finally {
     clearTimeout(timer);
   }
