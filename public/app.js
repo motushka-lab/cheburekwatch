@@ -116,27 +116,9 @@ function figmaImages(){
   };
 }
 
-function figmaMovies(){
-  const i=figmaImages();
-  return [
-    {title:"Сквозь снег",year:"2013",image:i.mountain},
-    {title:"Сталкер",year:"1979",image:i.road},
-    {title:"Вечное сияние",year:"2004",image:i.redEye},
-    {title:"Патерсон",year:"2016",image:i.forest}
-  ];
-}
+function figmaMovies(){ return []; }
 
-function figmaDemoRooms(){
-  const i=figmaImages();
-  return [
-    {title:"Ночной экспресс",film:"Сквозь снег",image:i.mountain,viewers:12,tag:"Фантастика",host:"Илья",status:"В эфире",demo:true},
-    {title:"Кино после полуночи",film:"Вечное сияние",image:i.redEye,viewers:7,tag:"Драма",host:"Маша",status:"Начали недавно",demo:true},
-    {title:"Тихий клуб",film:"Патерсон",image:i.forest,viewers:4,tag:"Авторское",host:"Саша",status:"В эфире",demo:true},
-    {title:"Красная комната",film:"Убийца",image:i.portrait,viewers:9,tag:"Триллер",host:"Аня",status:"05:12 до начала",demo:true},
-    {title:"Плёнка 35 мм",film:"Сталкер",image:i.road,viewers:6,tag:"Классика",host:"Костя",status:"В эфире",demo:true},
-    {title:"Дальний берег",film:"Изгнание",image:i.lake,viewers:3,tag:"Драма",host:"Лера",status:"Начали недавно",demo:true}
-  ];
-}
+function figmaDemoRooms(){ return []; }
 
 function cwIcon(name,size=20){
   const p={
@@ -200,24 +182,24 @@ function bottomNavHtml(){
 }
 
 function roomVisual(index=0){
-  const d=figmaDemoRooms();
-  return d[index%d.length];
+  const i=figmaImages();
+  const images=[i.mountain,i.redEye,i.forest,i.portrait,i.road,i.lake];
+  return {image:images[index%images.length]};
 }
 
 function roomCardHtml(r,index=0){
-  const v=r.demo?r:roomVisual(index);
-  const title=r.demo?r.title:`Комната ${esc(r.code)}`;
-  const film=r.demo?r.film:(r.media?(r.media.type==="youtube"?"YouTube":r.media.type==="vk"?"VK Video":"Видео файл"):"Фильм ещё не выбран");
-  const viewers=r.demo?r.viewers:Number(r.participantCount||0);
-  const host=r.demo?r.host:(r.ownerId===me?.id?me.nickname:"друг");
-  const status=r.demo?r.status:(r.media?"В эфире":"Ждёт фильм");
-  const action=r.demo?`data-demo-open`:`data-open="${esc(r.code)}"`;
+  const v=roomVisual(index);
+  const title=`Комната ${esc(r.code)}`;
+  const film=r.media?(r.media.type==="youtube"?"YouTube":r.media.type==="vk"?"VK Video":"Видео файл"):"Фильм ещё не выбран";
+  const viewers=Number(r.participantCount||0);
+  const status=r.media?"Готова к просмотру":"Ждёт фильм";
   const search=esc(`${title} ${film} ${r.code||""}`.toLowerCase());
   return `<article class="room-card reveal" data-search="${search}" style="animation-delay:${index*60}ms"><div class="poster">
-    <img src="${v.image}" alt=""><div class="poster-shade"></div><span class="badge">${esc(v.tag||"Кинокомната")}</span>
+    <img src="${v.image}" alt=""><div class="poster-shade"></div><span class="badge">Комната</span>
     <span class="room-status"><i></i>${esc(status)}</span>
-    <div class="poster-meta"><span class="viewers">${cwIcon("users",16)} ${viewers} смотрят</span><h3>${title}</h3><p>${esc(film)}</p><span class="room-host">Ведёт ${esc(host)}</span>
-      <button class="btn btn-paper" type="button" ${action}>Войти ${cwIcon("arrow",17)}</button></div>
+    <div class="poster-meta"><span class="viewers">${cwIcon("users",16)} ${viewers} ${viewers===1?"участник":"участников"} сейчас</span><h3>${title}</h3><p>${esc(film)}</p>
+      ${r.ownerId===me?.id?'<span class="room-host">Вы создатель</span>':""}
+      <button class="btn btn-paper" type="button" data-open="${esc(r.code)}">Войти ${cwIcon("arrow",17)}</button></div>
   </div></article>`;
 }
 
@@ -285,7 +267,15 @@ function openAccountModal(){
 
 async function landingPage(){
   const i=figmaImages();
-  const demos=figmaDemoRooms().slice(0,4);
+  let realRooms=[];
+  if(me){
+    try{realRooms=(await api("/api/my-rooms")).rooms||[]}catch{}
+  }
+  const roomSection=me
+    ? `<section class="section container"><div class="section-head"><div><span class="eyebrow">Ваши комнаты</span><h2>Продолжить просмотр</h2></div><a class="btn btn-ghost" href="/rooms" data-nav>Все комнаты ${cwIcon("arrow")}</a></div>
+       <div class="rooms-grid featured">${realRooms.length?realRooms.slice(0,4).map((r,n)=>roomCardHtml(r,n)).join(""):emptyStateHtml()}</div></section>`
+    : `<section class="section container"><div class="section-head"><div><span class="eyebrow">Совместный просмотр</span><h2>Здесь будут ваши комнаты</h2></div></div>
+       <div class="empty-state"><div class="empty-projector"><i></i><span></span></div><span class="eyebrow">Пока пусто</span><h3>Никаких выдуманных трансляций</h3><p>После входа здесь появятся только настоящие комнаты и реальные участники.</p><a class="btn btn-primary" href="/login" data-nav>Войти</a></div></section>`;
   shell(`<main>
     <section class="hero"><img class="hero-image" src="${i.hero}" alt="Горный пейзаж в сумерках"><div class="hero-overlay"></div>
       <div class="container hero-content reveal"><span class="hero-kicker"><i></i> Вечер начинается здесь</span><h1>Кино ближе,<br><em>когда вы вместе</em></h1>
@@ -293,14 +283,14 @@ async function landingPage(){
       <div class="hero-actions"><button class="btn btn-primary" data-create>${cwIcon("play")}<span class="btn-label">Создать комнату</span></button><a class="btn btn-secondary" href="${me?"/rooms":"/login"}" data-nav>Войти по коду ${cwIcon("arrow")}</a></div></div>
       <div class="hero-credit">Фото: John Towner / Unsplash</div>
     </section>
-    <section class="section container"><div class="section-head"><div><span class="eyebrow">Сейчас в эфире</span><h2>К вам можно?</h2></div><a class="btn btn-ghost" href="${me?"/rooms":"/login"}" data-nav>Все комнаты ${cwIcon("arrow")}</a></div>
-      <div class="rooms-grid featured">${demos.map((r,n)=>roomCardHtml(r,n)).join("")}</div></section>
+    ${roomSection}
     <section class="manifesto"><div class="container manifesto-grid"><div class="manifesto-image"><img src="${i.cinema}" alt="Зрители в кинозале"><span>ОДИН ЭКРАН<br>НА ВСЕХ</span></div>
       <div class="manifesto-copy"><span class="eyebrow">Без расстояний</span><h2>Как в кинотеатре.<br>Только у каждого дома.</h2>
-      <div class="feature-list"><div><b>01</b><span><strong>Кадр в кадр</strong>Пауза, перемотка и продолжение синхронны для всех.</span></div><div><b>02</b><span><strong>Живой разговор</strong>Чат и быстрые реакции рядом, но не мешают просмотру.</span></div><div><b>03</b><span><strong>Только свои</strong>Закройте комнату кодом или позовите новых знакомых.</span></div></div></div></div></section>
-    <section class="club-notes container"><div class="club-note-copy"><span class="eyebrow">Клубные заметки</span><h2>Не просто посмотреть.<br>Запомнить вместе.</h2><p>Профили собирают историю ваших вечеров: фильмы, компании, реакции и редкие знаки отличия. Никаких таблиц — только личная кинохроника.</p></div>
-      <div class="club-collage"><img src="${i.redEye}" alt=""><img src="${i.forest}" alt=""><img src="${i.road}" alt=""><span class="ticket">БИЛЕТ № 0048<br><small>МЕСТО РЯДОМ</small></span></div></section>
+      <div class="feature-list"><div><b>01</b><span><strong>Кадр в кадр</strong>Пауза, перемотка и продолжение синхронны для всех.</span></div><div><b>02</b><span><strong>Живой разговор</strong>Чат и быстрые реакции рядом, но не мешают просмотру.</span></div><div><b>03</b><span><strong>Только свои</strong>Входите в комнату по коду и смотрите со своей компанией.</span></div></div></div></div></section>
+    <section class="club-notes container"><div class="club-note-copy"><span class="eyebrow">Ваш профиль</span><h2>Смотрите вместе.<br>Прокачивайте профиль.</h2><p>Уровень, минуты просмотра и достижения считаются по реальной активности в комнатах.</p></div>
+      <div class="club-collage"><img src="${i.redEye}" alt=""><img src="${i.forest}" alt=""><img src="${i.road}" alt=""><span class="ticket">CHEBUREK<br><small>WATCH PARTY</small></span></div></section>
   </main>`);
+  document.querySelectorAll("[data-open]").forEach(b=>b.addEventListener("click",async()=>{b.disabled=true;try{await api(`/api/rooms/${b.dataset.open}/join`,{method:"POST"});navigate("/room/"+b.dataset.open)}catch(e){toast(e.message);b.disabled=false}}));
 }
 
 function shell(content,opts={}){
@@ -344,19 +334,18 @@ async function roomsPage(){
 async function createRoom(){openCreateRoomModal()}
 async function profilePage(){
   const d=await api("/api/profile");me=d.user;
-  const i=figmaImages(), movies=figmaMovies();
-  const next=me.minutesToNext||20,hours=Math.floor((me.watchMinutes||0)/60),unlocked=d.user.achievements.length,total=d.user.availableAchievements.length;
+  const i=figmaImages();
+  const next=me.minutesToNext||20,hours=Math.floor((me.watchMinutes||0)/60),mins=(me.watchMinutes||0)%60,unlocked=d.user.achievements.length,total=d.user.availableAchievements.length;
   const firstAchievements=d.user.availableAchievements.slice(0,3);
   shell(`<main class="profile-page"><section class="profile-hero"><img src="${i.chairs}" alt=""><div class="profile-shade"></div><div class="container profile-info">${avatarHtml(me.nickname,"lg")}<div class="profile-name"><span class="eyebrow">Профиль зрителя</span><h1>${esc(me.nickname)}</h1><p>@${esc(me.nickname.toLowerCase().replace(/\s+/g,""))} · ${esc(me.secretPrefix||me.prefix||"зритель")}</p></div><button class="btn btn-secondary" id="profileSettings">Настроить профиль</button></div></section>
-    <div class="container profile-content"><section class="level-card"><div class="level-number">${String(me.level).padStart(2,"0")}</div><div class="level-copy"><span>УРОВЕНЬ</span><h3>${esc(me.secretPrefix||me.prefix||"Зритель")}</h3><div class="progress"><i style="width:${Math.max(0,Math.min(100,Number(me.progress||0)))}%"></i></div><p>${next} мин. до следующего уровня</p></div><div class="stats"><div><strong>${Math.max(0,Math.round((me.watchMinutes||0)/120))}</strong><span>Фильмов</span></div><div><strong>${hours}</strong><span>Часов</span></div><div><strong>${unlocked}</strong><span>Наград</span></div></div></section>
-    <section class="profile-section"><div class="section-head"><div><span class="eyebrow">Последние сеансы</span><h2>История просмотров</h2></div><button class="btn btn-ghost">Вся история ${cwIcon("arrow")}</button></div><div class="history-grid">${figmaDemoRooms().slice(0,4).map((r,n)=>`<article class="history-card"><img src="${r.image}" alt=""><div><span>Досмотрено ${n===1?"на 74%":"полностью"}</span><h3>${esc(r.film)}</h3><p>В комнате «${esc(r.title)}»</p></div></article>`).join("")}</div></section>
-    <section class="profile-section"><div class="section-head"><div><span class="eyebrow">Коллекция</span><h2>Знаки отличия</h2></div></div><div class="achievements">${firstAchievements.length?firstAchievements.map((a,n)=>`<div><b>${["35","12","∞"][n]||"•"}</b><span><strong>${esc(a.title)}</strong>${esc(a.desc)}</span></div>`).join(""):`<div><b>○</b><span><strong>Первый сеанс</strong>Знаки появятся после совместных просмотров</span></div>`}</div></section>
-    <section class="profile-section favorites-section"><div class="section-head"><div><span class="eyebrow">Полка ${esc(me.nickname)}</span><h2>Любимое кино</h2></div><span class="shelf-note">Пыль протирается автоматически</span></div><div class="favorite-shelf">${movies.map((m,n)=>`<article><span>0${n+1}</span><img src="${m.image}" alt=""><div><h3>${m.title}</h3><p>${m.year} · В любимом</p></div></article>`).join("")}</div></section>
+    <div class="container profile-content"><section class="level-card"><div class="level-number">${String(me.level).padStart(2,"0")}</div><div class="level-copy"><span>УРОВЕНЬ</span><h3>${esc(me.secretPrefix||me.prefix||"Зритель")}</h3><div class="progress"><i style="width:${Math.max(0,Math.min(100,Number(me.progress||0)))}%"></i></div><p>${next} мин. до следующего уровня</p></div><div class="stats"><div><strong>${me.watchMinutes||0}</strong><span>Минут</span></div><div><strong>${hours}ч ${mins}м</strong><span>Просмотра</span></div><div><strong>${unlocked}</strong><span>Наград</span></div></div></section>
+    <section class="profile-section"><div class="section-head"><div><span class="eyebrow">Коллекция</span><h2>Знаки отличия</h2></div></div><div class="achievements">${firstAchievements.length?firstAchievements.map((a,n)=>`<div><b>${["01","02","03"][n]||"•"}</b><span><strong>${esc(a.title)}</strong>${esc(a.desc)}</span></div>`).join(""):`<div><b>○</b><span><strong>Пока пусто</strong>Достижения появятся после реальных просмотров</span></div>`}</div></section>
+    <section class="profile-section profile-real-note"><div class="empty-state"><div class="empty-projector"><i></i><span></span></div><span class="eyebrow">История просмотров</span><h3>Здесь появятся только реальные данные</h3><p>Сейчас сервер не хранит отдельную историю фильмов и избранное, поэтому мы не показываем выдуманные фильмы, комнаты или проценты просмотра.</p></div></section>
     </div></main>`);
   $("#profileSettings").onclick=openAccountModal;
 }
 function playerHtml(media){
-  if(!media)return `<div class="emptyvideo"><img src="${figmaImages().mountain}" alt=""><div class="emptyvideo-shade"></div><div class="emptyvideo-copy"><span>СЕЙЧАС СМОТРИМ</span><b>Экран ждёт фильм</b><small>Нажмите «Сменить кино» и вставьте ссылку YouTube, VK Video или прямой файл.</small></div></div>`;
+  if(!media)return `<div class="emptyvideo"><img src="${figmaImages().mountain}" alt=""><div class="emptyvideo-shade"></div><div class="emptyvideo-copy"><span>КИНО НЕ ВЫБРАНО</span><b>Экран ждёт фильм</b><small>Нажмите «Сменить кино» и вставьте ссылку YouTube, VK Video или прямой файл.</small></div></div>`;
   if(media.type==="youtube")return `<div class="player-frame yt-stage" id="yt"><div class="player-loading">Подключаем видео…</div></div>`;
   if(media.type==="vk")return `<iframe class="player-frame" id="vkframe" allow="autoplay; encrypted-media; fullscreen; picture-in-picture" allowfullscreen src="${esc(media.url)}"></iframe>`;
   return `<video class="player-frame" id="htmlvideo" playsinline preload="metadata" controls src="${esc(media.url)}"></video>`;
@@ -364,12 +353,12 @@ function playerHtml(media){
 async function roomPage(code){
   try{
     const d=await api(`/api/rooms/${encodeURIComponent(code)}`);room=d.room;
-    const people=room.users||[], movies=figmaMovies(), label=room.media?(room.media.type==="youtube"?"YouTube":room.media.type==="vk"?"VK Video":"Видео"):"Фильм не выбран";
-    shell(`<main class="watch-page"><div class="watch-header container"><a class="btn btn-ghost" href="/rooms" data-nav>${cwIcon("back")}<span>Комнаты</span></a><div class="room-title"><span class="live-dot"></span><div><h3>Ночной экспресс</h3><span>Комната ${esc(room.code)} · ${people.length} зрителей</span></div></div><div class="participant-stack">${people.slice(0,3).map(u=>avatarHtml(u.nickname)).join("")}${people.length>3?`<span>+${people.length-3}</span>`:""}</div></div>
-      <div class="watch-layout container roomlayout ${room.media?"has-media":"needs-media"}"><section class="player-column"><div class="player video-shell" id="videobox">${playerHtml(room.media)}<div class="movie-label"><span>СЕЙЧАС СМОТРИМ</span><strong>${esc(label)}</strong></div><div class="player-overlay" id="playerOverlay"><button type="button" class="player-chat-toggle" id="playerChatToggle">${cwIcon("chat")}</button><button type="button" class="player-fullscreen" id="playerFullscreen">${cwIcon("expand")}</button><div class="overlay-chat" id="overlayChat"><div class="overlay-head"><b>Чат</b><button id="overlayClose">×</button></div><div class="overlay-messages" id="overlayMessages"></div><form id="overlayForm"><input id="overlayInput" maxlength="500" placeholder="Написать сообщение…"><button type="submit">${cwIcon("send",17)}</button></form></div></div></div>
-      <div class="player-controls"><button class="btn btn-icon" id="seekBack" aria-label="Назад на 10 секунд">${cwIcon("back")}</button><button class="btn btn-icon" id="playerToggle" aria-label="Воспроизвести">${cwIcon(room.playing?"pause":"play")}</button><div class="timeline" id="fakeTimeline"><i></i><span></span></div><span class="time" id="playerTime">совместный просмотр</span><button class="btn btn-icon" aria-label="Громкость">${cwIcon("sound")}</button><button class="btn btn-icon" id="playerFullscreenBottom" aria-label="На весь экран">${cwIcon("expand")}</button></div>
-      <div class="under-player"><div><h3>${esc(label)}</h3><span>Киноклуб «Ночной экспресс» · код ${esc(room.code)}</span></div><div class="reaction-row"><button class="btn btn-secondary" data-room-reaction="♥">${cwIcon("heart")}12</button><button class="btn btn-secondary" data-room-reaction="ХА">${cwIcon("smile")}8</button><button class="btn btn-primary" id="movieSelectorToggle">${cwIcon("film")}<span class="btn-label">Сменить кино</span></button></div></div>
-      <div class="movie-selector" id="movieSelector" hidden><div class="selector-head"><div><span class="eyebrow">Следующий кадр</span><h3>Выберите кино</h3></div><button class="btn btn-icon" id="movieSelectorClose">${cwIcon("close")}</button></div><div class="movie-options">${movies.map(m=>`<button type="button" data-movie-hint="${esc(m.title)}"><img src="${m.image}" alt=""><span><strong>${m.title}</strong><small>${m.year}</small></span></button>`).join("")}</div><p class="selector-note">Совет киномеханика: вставьте ссылку — смена произойдёт одновременно у всех.</p><form id="mediaform" class="mediaform"><input id="mediaurl" placeholder="YouTube / VK / прямая ссылка" required><button class="btn btn-primary">${cwIcon("play")}<span class="btn-label">Поставить кино</span></button></form><div id="mediaerr"></div></div>
+    const people=room.users||[],label=room.media?(room.media.type==="youtube"?"YouTube":room.media.type==="vk"?"VK Video":"Видео"):"Фильм не выбран";
+    shell(`<main class="watch-page"><div class="watch-header container"><a class="btn btn-ghost" href="/rooms" data-nav>${cwIcon("back")}<span>Комнаты</span></a><div class="room-title"><span class="live-dot"></span><div><h3>Комната ${esc(room.code)}</h3><span>${people.length} ${people.length===1?"участник":"участников"} сейчас</span></div></div><div class="participant-stack">${people.slice(0,3).map(u=>avatarHtml(u.nickname)).join("")}${people.length>3?`<span>+${people.length-3}</span>`:""}</div></div>
+      <div class="watch-layout container roomlayout ${room.media?"has-media":"needs-media"}"><section class="player-column"><div class="player video-shell" id="videobox">${playerHtml(room.media)}<div class="movie-label"><span>${room.media?"ИСТОЧНИК В КОМНАТЕ":"КИНО НЕ ВЫБРАНО"}</span><strong>${esc(label)}</strong></div><div class="player-overlay" id="playerOverlay"><button type="button" class="player-chat-toggle" id="playerChatToggle">${cwIcon("chat")}</button><button type="button" class="player-fullscreen" id="playerFullscreen">${cwIcon("expand")}</button><div class="overlay-chat" id="overlayChat"><div class="overlay-head"><b>Чат</b><button id="overlayClose">×</button></div><div class="overlay-messages" id="overlayMessages"></div><form id="overlayForm"><input id="overlayInput" maxlength="500" placeholder="Написать сообщение…"><button type="submit">${cwIcon("send",17)}</button></form></div></div></div>
+      <div class="player-controls"><button class="btn btn-icon" id="seekBack" aria-label="Назад на 10 секунд">${cwIcon("back")}</button><button class="btn btn-icon" id="playerToggle" aria-label="Воспроизвести">${cwIcon(room.playing?"pause":"play")}</button><div class="timeline" id="fakeTimeline"><i></i><span></span></div><span class="time" id="playerTime">синхронный просмотр</span><button class="btn btn-icon" aria-label="Громкость">${cwIcon("sound")}</button><button class="btn btn-icon" id="playerFullscreenBottom" aria-label="На весь экран">${cwIcon("expand")}</button></div>
+      <div class="under-player"><div><h3>${esc(label)}</h3><span>Комната ${esc(room.code)}</span></div><div class="reaction-row"><button class="btn btn-secondary" data-room-reaction="♥">${cwIcon("heart")}</button><button class="btn btn-secondary" data-room-reaction="ХА">${cwIcon("smile")}</button><button class="btn btn-primary" id="movieSelectorToggle">${cwIcon("film")}<span class="btn-label">Сменить кино</span></button></div></div>
+      <div class="movie-selector" id="movieSelector" hidden><div class="selector-head"><div><span class="eyebrow">Источник</span><h3>Добавить или сменить кино</h3></div><button class="btn btn-icon" id="movieSelectorClose">${cwIcon("close")}</button></div><p class="selector-note">Вставьте ссылку YouTube, VK Video или прямую ссылку на видео. Изменение синхронизируется для комнаты.</p><form id="mediaform" class="mediaform"><input id="mediaurl" placeholder="YouTube / VK / прямая ссылка" required><button class="btn btn-primary">${cwIcon("play")}<span class="btn-label">Поставить кино</span></button></form><div id="mediaerr"></div></div>
       </section>
       <aside class="chat-panel"><div class="chat-head"><div><h3>Чат</h3><span>${people.length} в комнате</span></div><div class="chat-head-actions"><button class="btn btn-ghost" id="invite">Пригласить</button><button class="btn btn-icon" id="peopleToggle" aria-label="Участники">${cwIcon("users")}</button></div></div>
       <div class="participants-popover" id="peoplePopover" hidden><div id="people">${peopleHtml(people)}</div>${room.ownerId===me.id?`<button id="deleteRoom" class="btn btn-ghost danger-text">Удалить комнату</button>`:""}<button id="creatorBtn" class="btn btn-ghost">Создатель</button></div>
@@ -380,7 +369,6 @@ async function roomPage(code){
     const selector=$("#movieSelector"),toggle=$("#movieSelectorToggle");
     toggle.onclick=()=>{selector.hidden=!selector.hidden;toggle.classList.toggle("active",!selector.hidden)};
     $("#movieSelectorClose").onclick=()=>{selector.hidden=true;toggle.classList.remove("active")};
-    document.querySelectorAll("[data-movie-hint]").forEach(b=>b.onclick=()=>{toast(`Вставьте ссылку на «${b.dataset.movieHint}» или любой другой фильм`);$("#mediaurl").focus()});
     document.querySelectorAll("[data-room-reaction]").forEach(b=>b.onclick=()=>{const f=document.createElement("span");f.className="floating-reaction";f.textContent=b.dataset.roomReaction;$("#videobox").appendChild(f);setTimeout(()=>f.remove(),1150)});
     $("#playerFullscreenBottom").onclick=()=>$("#playerFullscreen")?.click();
     $("#playerToggle").onclick=()=>{const playing=!room.playing;room.playing=playing;try{if(player?.playVideo)playing?player.playVideo():player.pauseVideo();else if(vkPlayer?.play)playing?vkPlayer.play():vkPlayer.pause();else if(localVideo)playing?localVideo.play().catch(()=>{}):localVideo.pause()}catch{}sendState(playing,getPosition(),playing?"play":"pause");$("#playerToggle").innerHTML=cwIcon(playing?"pause":"play")};
