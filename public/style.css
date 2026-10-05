@@ -1402,3 +1402,7 @@ h1,h2,h3,.modal-title,.profile-name h1,.room-title h3,.motion-card b,.club-note-
   .episode-grid button{min-height:40px;font-size:10px}
   .episode-page-controls>span{min-width:68px;font-size:7px}
 }
+
+/* v44 — anime resolver moved away from RUTUBE */
+.anime-rutube-box,.rutube-result,.anime-rutube-results,.anime-rutube-head{display:none!important}
+.episode-status .error-inline{display:inline-block;max-width:520px}
