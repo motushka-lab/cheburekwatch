@@ -1375,3 +1375,30 @@ h1,h2,h3,.modal-title,.profile-name h1,.room-title h3,.motion-card b,.club-note-
   .anime-rutube-results{grid-template-columns:1fr;max-height:300px}
   .rutube-result{grid-template-columns:78px 1fr 22px}.rutube-result-thumb{width:78px}
 }
+
+/* v43 — clean anime episode picker */
+.anime-rutube-box,.anime-external-sources{display:none!important}
+.episode-picker{
+  margin-top:14px;padding:14px;border:1px solid #49375a;
+  background:linear-gradient(145deg,rgba(26,19,35,.98),rgba(10,8,14,.99));
+}
+.episode-picker-head{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-bottom:12px}
+.episode-picker-head>div:first-child{display:grid;gap:3px}.episode-picker-head b{font-family:var(--manga-head);font-style:italic;font-size:14px}
+.episode-page-controls{display:flex;align-items:center;gap:8px}.episode-page-controls>span{min-width:84px;text-align:center;color:var(--muted);font-size:8px;letter-spacing:.08em}
+.episode-grid{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:7px}
+.episode-grid button{
+  appearance:none;min-height:44px;border:1px solid #42334f;background:#0e0b13;color:var(--paper);
+  font-family:var(--manga-head);font-style:italic;font-size:12px;cursor:pointer;transition:.16s;
+}
+.episode-grid button:hover{border-color:var(--manga-purple);background:#21122d;color:var(--manga-gold);transform:translateY(-1px)}
+.episode-grid button:disabled{opacity:.45;cursor:wait;transform:none}
+.episode-status{min-height:24px;padding:11px 2px 0;color:var(--muted);font-size:8px;line-height:1.5}
+.episode-status svg{vertical-align:-3px;margin-right:5px;color:#9fda92}
+@media(max-width:700px){
+  .episode-picker{padding:11px}
+  .episode-picker-head{align-items:flex-end}
+  .episode-picker-head b{font-size:11px}
+  .episode-grid{grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}
+  .episode-grid button{min-height:40px;font-size:10px}
+  .episode-page-controls>span{min-width:68px;font-size:7px}
+}
