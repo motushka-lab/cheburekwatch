@@ -226,7 +226,7 @@ function openCreateRoomModal(){
   wrap.innerHTML=`<div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
     <div class="modal-head"><div><span class="eyebrow">Новый сеанс</span><h2 class="modal-title" id="modal-title">Создать комнату</h2></div><button class="btn btn-icon" data-close-modal aria-label="Закрыть">${cwIcon("close")}</button></div>
     <div class="modal-poster"><img src="${i.road}" alt=""><div><span>Фильм можно выбрать сейчас или позже</span><h3>Что будем смотреть?</h3><button class="btn btn-paper" type="button" id="pickMovie">${cwIcon("search")}Выбрать кино</button></div></div>
-    <label class="field"><span>Название комнаты</span><input id="newRoomName" placeholder="Например, Кино после полуночи" maxlength="60"></label>
+    <label class="field"><span>Название комнаты</span><input id="newRoomName" placeholder="Название вашей комнаты" maxlength="60"></label>
     <div class="privacy-options">
       <button class="selected" type="button" data-privacy="private">${cwIcon("lock")}<span><strong>Только для своих</strong>Вход по приглашению или коду</span><i>${cwIcon("check",15)}</i></button>
       <button type="button" data-privacy="open">${cwIcon("users")}<span><strong>Открытая комната</strong>Её увидят в общем списке</span><i></i></button>
