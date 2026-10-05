@@ -104,6 +104,7 @@ if (!fs.existsSync(DB_FILE)) {
 let db = JSON.parse(fs.readFileSync(DB_FILE, "utf8"));
 const sseClients = new Map(); // roomCode -> Set(response)
 const presence = new Map();   // roomCode -> Map(userId -> {user, lastSeen})
+const vkUserTokens = new Map(); // CheburekWatch userId -> { token, expiresAt } (memory only)
 
 function saveDb() {
   const tmp = DB_FILE + ".tmp";
@@ -313,6 +314,8 @@ function createSession(res, user) {
   res.setHeader("Set-Cookie", `sid=${encodeURIComponent(sid)}; Path=/; HttpOnly; SameSite=Lax; ${secure ? "Secure; " : ""}Max-Age=${SESSION_DAYS*86400}`);
 }
 app.post("/api/logout", (req, res) => {
+  const currentUser = getUser(req);
+  if (currentUser) vkUserTokens.delete(currentUser.id);
   const sid = parseCookies(req).sid;
   if (sid) { db.sessions = db.sessions.filter(s => s.id !== sid); saveDb(); }
   const secure = process.env.NODE_ENV === "production" || process.env.COOKIE_SECURE === "true";
@@ -325,14 +328,66 @@ app.get("/api/me", (req, res) => {
   res.json({ user: user ? publicUser(user) : null });
 });
 
+// VK ID token is received from the official browser SDK, validated once, and kept only in memory.
+app.get("/api/vk/status", requireAuth, (req, res) => {
+  const saved = vkUserTokens.get(req.user.id);
+  if (saved && saved.expiresAt <= Date.now()) vkUserTokens.delete(req.user.id);
+  res.json({ connected: !!vkUserTokens.get(req.user.id) || !!VK_API_TOKEN });
+});
+
+app.post("/api/vk/connect", requireAuth, async (req, res) => {
+  const accessToken = String(req.body?.accessToken || "").trim();
+  const expiresIn = Math.max(60, Math.min(86400 * 30, Number(req.body?.expiresIn || 3600)));
+  if (accessToken.length < 20 || accessToken.length > 4096) {
+    return res.status(400).json({ error: "VK ID не вернул корректный access token" });
+  }
+
+  const params = new URLSearchParams({
+    access_token: accessToken,
+    v: VK_API_VERSION
+  });
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 8000);
+  try {
+    const response = await fetch("https://api.vk.com/method/users.get?" + params.toString(), {
+      signal: controller.signal,
+      headers: { "Accept": "application/json" }
+    });
+    const data = await response.json();
+    if (!response.ok || data.error || !Array.isArray(data.response)) {
+      return res.status(401).json({
+        error: String(data?.error?.error_msg || "Этот токен VK ID не даёт доступ к VK API"),
+        code: "VK_TOKEN_REJECTED"
+      });
+    }
+    vkUserTokens.set(req.user.id, {
+      token: accessToken,
+      expiresAt: Date.now() + expiresIn * 1000
+    });
+    res.json({ connected: true });
+  } catch (error) {
+    res.status(502).json({ error: error?.name === "AbortError" ? "VK не ответил вовремя" : "Не удалось проверить VK ID" });
+  } finally {
+    clearTimeout(timer);
+  }
+});
+
+app.post("/api/vk/disconnect", requireAuth, (req, res) => {
+  vkUserTokens.delete(req.user.id);
+  res.json({ connected: false });
+});
+
 // VK Video search. VK's official video.search method requires a user access token.
 app.get("/api/vk/search", requireAuth, async (req, res) => {
   const q = String(req.query.q || "").trim().slice(0, 120);
   if (q.length < 2) return res.status(400).json({ error: "Введите хотя бы 2 символа" });
-  if (!VK_API_TOKEN) {
-    return res.status(503).json({
-      error: "Поиск VK Video ещё не подключён: добавьте VK_ACCESS_TOKEN в переменные Render.",
-      code: "VK_SEARCH_NOT_CONFIGURED"
+  const saved = vkUserTokens.get(req.user.id);
+  if (saved && saved.expiresAt <= Date.now()) vkUserTokens.delete(req.user.id);
+  const accessToken = (vkUserTokens.get(req.user.id)?.token || VK_API_TOKEN || "").trim();
+  if (!accessToken) {
+    return res.status(401).json({
+      error: "Подключите VK ID, чтобы искать видео.",
+      code: "VK_AUTH_REQUIRED"
     });
   }
 
@@ -343,7 +398,7 @@ app.get("/api/vk/search", requireAuth, async (req, res) => {
     filters: "vk",
     count: "12",
     extended: "0",
-    access_token: VK_API_TOKEN,
+    access_token: accessToken,
     v: VK_API_VERSION
   });
 
