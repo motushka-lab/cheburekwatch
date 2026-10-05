@@ -1985,3 +1985,10 @@ body.manga-mode .bottom-manga-toggle.active{background:#050505!important;color:#
 /* ensure no purple/gold survives inside Manga Mode */
 body.manga-mode *{scrollbar-color:#050505 #fff}
 body.manga-mode a:not(.btn){color:inherit}
+
+/* v47 — Manga Mode is truly monochrome, including the watch panel */
+body.manga-mode .watch-page .player-frame,
+body.manga-mode .watch-page #htmlvideo,
+body.manga-mode .watch-page iframe{
+  filter:grayscale(1) contrast(1.12)!important;
+}
