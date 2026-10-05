@@ -2788,3 +2788,50 @@ button{white-space:nowrap}
   .page>*{animation:none!important}
   .room-card,.cw-photo-card,.fun-card,.mobile-media-toggle{transition:none!important}
 }
+
+
+/* v23 — Figma Make cinematic motion pass */
+:root{--cw-ease:cubic-bezier(.2,.75,.25,1);--cw-fast:150ms;--cw-normal:280ms;--cw-cinema:620ms}
+::selection{background:rgba(217,65,73,.38);color:#fff}
+button,.primary,.secondary,.outline-btn,.room-open{will-change:transform}
+.primary,.secondary,.outline-btn,.room-open{transition:transform var(--cw-fast) var(--cw-ease),filter var(--cw-normal) ease,box-shadow var(--cw-normal) ease,border-color var(--cw-normal) ease,background var(--cw-normal) ease}
+.primary:active,.secondary:active,.outline-btn:active,.room-open:active{transform:translateY(0) scale(.975)}
+.primary:focus-visible,.secondary:focus-visible,.outline-btn:focus-visible,.room-open:focus-visible{outline:2px solid #f8f5f6;outline-offset:3px}
+.room-card{transition:transform var(--cw-normal) var(--cw-ease),box-shadow var(--cw-normal) ease,border-color var(--cw-normal) ease}
+.room-card:hover{transform:translateY(-7px)}
+.room-card img,.archive-card img,.photo-card img{transition:transform var(--cw-cinema) var(--cw-ease),filter var(--cw-normal) ease}
+.room-card:hover img,.archive-card:hover img,.photo-card:hover img{transform:scale(1.035);filter:saturate(1.02) brightness(1.04)}
+.page{animation:cwPageReveal .5s var(--cw-ease) both}
+@keyframes cwPageReveal{from{opacity:0;transform:translateY(12px);filter:brightness(.72)}to{opacity:1;transform:none;filter:none}}
+.cw-intro{position:fixed;z-index:99999;inset:0;display:grid;place-items:center;overflow:hidden;background:#050505;color:#f3efe7;transition:opacity .65s var(--cw-ease),visibility .65s}
+.cw-intro.is-leaving{opacity:0;visibility:hidden;pointer-events:none}
+.cw-intro-ambient{position:absolute;width:min(70vw,820px);aspect-ratio:1;border-radius:50%;background:radial-gradient(circle,rgba(191,57,55,.18),rgba(191,57,55,.035) 38%,transparent 70%);filter:blur(22px);animation:cwIntroPulse 2.2s ease-in-out both}
+.cw-intro-grain{position:absolute;inset:-30%;opacity:.13;pointer-events:none;background-image:repeating-radial-gradient(circle at 20% 30%,rgba(255,255,255,.14) 0 1px,transparent 1px 5px);background-size:11px 11px;animation:cwGrain 1.2s steps(2) infinite}
+.cw-intro-logo{position:relative;text-align:center;animation:cwLogoIn .9s .12s var(--cw-ease) both}
+.cw-intro-mark{width:58px;height:64px;margin:0 auto 18px;display:grid;place-items:center;border:1px solid rgba(243,239,231,.82);border-radius:50% 50% 45% 45%;font-family:Georgia,serif;font-size:31px;transform:rotate(-4deg)}
+.cw-intro-name{position:relative;overflow:hidden;font-size:clamp(22px,4vw,40px);font-weight:800;letter-spacing:.15em}
+.cw-intro-name b{color:#d85549}
+.cw-intro-name:after{content:"";position:absolute;inset:-20% auto -20% -35%;width:26%;background:linear-gradient(100deg,transparent,rgba(255,255,255,.36),transparent);transform:skewX(-18deg);animation:cwLogoLight 1.1s .72s ease forwards}
+.cw-intro-sub{margin-top:12px;color:#8f8b84;font-size:10px;letter-spacing:.22em;text-transform:uppercase}
+.cw-intro-line{position:absolute;left:50%;bottom:11vh;width:min(230px,45vw);height:1px;background:#272522;transform:translateX(-50%);overflow:hidden}
+.cw-intro-line:after{content:"";display:block;width:55%;height:100%;background:#d85549;animation:cwIntroLine 1.65s var(--cw-ease) both}
+@keyframes cwLogoIn{from{opacity:0;transform:translateY(10px) scale(.985);filter:blur(7px)}to{opacity:1;transform:none;filter:none}}
+@keyframes cwLogoLight{to{left:115%}}
+@keyframes cwIntroLine{from{transform:translateX(-110%)}to{transform:translateX(185%)}}
+@keyframes cwIntroPulse{from{opacity:0;transform:scale(.75)}to{opacity:1;transform:scale(1)}}
+@keyframes cwGrain{0%{transform:translate(0)}50%{transform:translate(1.5%,-1%)}100%{transform:translate(-1%,1.5%)}}
+.cw-toast{display:flex!important;align-items:center;gap:10px;max-width:min(380px,calc(100vw - 28px));padding:12px 15px!important;border:1px solid #443236!important;background:rgba(15,13,14,.94)!important;backdrop-filter:blur(18px);box-shadow:0 18px 55px #0009!important;transform:translateY(14px) scale(.98)!important;opacity:0!important;transition:opacity .25s ease,transform .3s var(--cw-ease)!important}
+.cw-toast:before{content:"✓";width:22px;height:22px;display:grid;place-items:center;flex:none;border-radius:50%;background:#536b4d;color:#fff;font-size:11px}
+.cw-toast.show{opacity:1!important;transform:none!important}
+.video-shell:after{content:"";position:absolute;inset:0;pointer-events:none;background:radial-gradient(circle at 50% 45%,transparent 48%,rgba(0,0,0,.2) 100%);mix-blend-mode:multiply}
+.player-chat-toggle,.player-fullscreen{transition:transform var(--cw-fast) var(--cw-ease),background var(--cw-normal),border-color var(--cw-normal)}
+.player-chat-toggle:hover,.player-fullscreen:hover{transform:translateY(-2px);background:rgba(30,23,26,.92);border-color:rgba(216,85,73,.45)}
+.overlay-chat{transform:translateX(16px);opacity:0;visibility:hidden;display:flex!important;transition:transform .32s var(--cw-ease),opacity .25s ease,visibility .25s}
+.overlay-chat.open{transform:none;opacity:1;visibility:visible}
+.msg{animation:cwMessageIn .3s var(--cw-ease) both}
+@keyframes cwMessageIn{from{opacity:0;transform:translateY(7px)}to{opacity:1;transform:none}}
+.creator-modal{animation:cwBackdropIn .25s ease both}
+.creator-card{animation:cwModalIn .38s var(--cw-ease) both}
+@keyframes cwBackdropIn{from{opacity:0}to{opacity:1}}
+@keyframes cwModalIn{from{opacity:0;transform:translateY(14px) scale(.985)}to{opacity:1;transform:none}}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}.cw-intro-grain,.cw-intro-ambient,.cw-intro-name:after,.cw-intro-line:after{animation:none!important}.page,.msg,.creator-modal,.creator-card{animation:none!important}*,*:before,*:after{transition-duration:.01ms!important;animation-duration:.01ms!important;animation-iteration-count:1!important}}
