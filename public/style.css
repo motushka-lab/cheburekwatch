@@ -1348,3 +1348,30 @@ h1,h2,h3,.modal-title,.profile-name h1,.room-title h3,.motion-card b,.club-note-
   .vk-public-search,.vk-link-pick{grid-template-columns:1fr}
   .vk-public-search .btn,.vk-link-pick .btn{width:100%}
 }
+
+/* v42 — playable anime via RUTUBE embed */
+.anime-rutube-box{
+  margin-top:14px;padding:12px;border:1px solid #473a54;
+  background:linear-gradient(145deg,rgba(31,23,41,.96),rgba(10,9,14,.98));
+}
+.anime-rutube-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:9px}
+.anime-rutube-head span{display:grid;gap:2px}.anime-rutube-head b{color:#efc56f;font-family:var(--manga-head);font-style:italic;font-size:13px}.anime-rutube-head small{color:var(--muted);font-size:8px}
+.anime-rutube-box form{display:grid;grid-template-columns:1fr auto;gap:8px}
+.anime-rutube-status{min-height:23px;padding:10px 2px 4px;color:var(--muted);font-size:8px;line-height:1.5}
+.anime-rutube-results{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;max-height:330px;overflow:auto;padding-right:3px}
+.rutube-result{
+  appearance:none;display:grid;grid-template-columns:92px 1fr 24px;gap:9px;align-items:center;
+  padding:7px;border:1px solid #342a3d;background:#100d15;color:var(--paper);text-align:left;cursor:pointer;transition:.18s
+}
+.rutube-result:hover,.rutube-result.selected{border-color:#a57a43;background:#18120f;transform:translateY(-1px)}
+.rutube-result-thumb{position:relative;width:92px;aspect-ratio:16/9;overflow:hidden;background:#08070c}.rutube-result-thumb img{width:100%;height:100%;object-fit:cover;filter:none!important}.rutube-result-thumb b{position:absolute;right:4px;bottom:4px;padding:2px 4px;background:rgba(0,0,0,.8);font:700 8px Arial;color:#fff}
+.rutube-result-copy{min-width:0}.rutube-result-copy strong{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-size:9px;line-height:1.3}.rutube-result-copy small{display:block;margin-top:6px;color:var(--muted);font-size:7.5px}
+.rutube-result-play{color:#efc56f}
+.anime-external-sources{margin-top:12px}.anime-external-sources summary{cursor:pointer;color:var(--muted);font-size:8px;text-transform:uppercase;letter-spacing:.08em}
+#rutubeframe{width:100%;height:100%;border:0;background:#000}
+@media(max-width:700px){
+  .anime-rutube-box form{grid-template-columns:1fr}
+  .anime-rutube-box form .btn{width:100%}
+  .anime-rutube-results{grid-template-columns:1fr;max-height:300px}
+  .rutube-result{grid-template-columns:78px 1fr 22px}.rutube-result-thumb{width:78px}
+}
