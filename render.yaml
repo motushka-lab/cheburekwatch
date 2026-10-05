@@ -16,3 +16,7 @@ services:
         value: production
       - key: DATA_DIR
         value: /var/data
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: TELEGRAM_ADMIN_ID
+        sync: false
