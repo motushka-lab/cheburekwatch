@@ -557,7 +557,7 @@ function bindVkSearch(root,{onPick,onAnime}={}){
         <div class="episode-picker">
           <div class="episode-picker-head"><div><span class="eyebrow">ЭПИЗОД</span><b>КАКУЮ СЕРИЮ СМОТРИМ?</b></div><div class="episode-page-controls"><button class="btn btn-icon" type="button" data-episode-prev>${cwIcon("back",15)}</button><span data-episode-range></span><button class="btn btn-icon" type="button" data-episode-next>${cwIcon("arrow",15)}</button></div></div>
           <div class="episode-grid" data-episode-grid></div>
-          <div class="episode-status" data-episode-status>Нажмите номер серии — источник подберётся автоматически.</div>
+          <div class="episode-status" data-episode-status>Нажмите номер серии — CheburekWatch попробует открыть её прямо в комнате.</div>
         </div>`;
 
       const epGrid=animeSelected.querySelector("[data-episode-grid]");
@@ -568,7 +568,7 @@ function bindVkSearch(root,{onPick,onAnime}={}){
 
       const chooseEpisode=async episode=>{
         epGrid.querySelectorAll("button").forEach(b=>b.disabled=true);
-        epStatus.innerHTML='<span class="button-loader"></span> Подбираю серию '+episode+'…';
+        epStatus.innerHTML='<span class="button-loader"></span> Ищу серию '+episode+'…';
         try{
           const data=await api("/api/anime/episode-source",{method:"POST",body:{
             title:item.title,romaji:item.romaji,native:item.native,synonyms:item.synonyms||[],episode
