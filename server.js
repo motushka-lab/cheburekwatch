@@ -14,6 +14,7 @@ const MAX_MESSAGE = 500;
 const MAX_NICK = 24;
 const VK_API_TOKEN = String(process.env.VK_ACCESS_TOKEN || process.env.VK_USER_TOKEN || "").trim();
 const VK_API_VERSION = String(process.env.VK_API_VERSION || "5.199").trim();
+const YOUTUBE_API_KEY = String(process.env.YOUTUBE_API_KEY || "").trim();
 
 const SITE_MEDIA_TARS = [
   "cw-media-a.tar",
@@ -596,6 +597,94 @@ async function fetchRutubeCandidates(query, signal) {
   if (lastError?.name === "AbortError") throw lastError;
   return [];
 }
+function parseYouTubeDuration(value) {
+  const m = String(value || "").match(/^PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?$/);
+  if (!m) return 0;
+  return Number(m[1] || 0) * 3600 + Number(m[2] || 0) * 60 + Number(m[3] || 0);
+}
+function scoreYouTubeEpisode(item, aliases, episode) {
+  const title = String(item.title || "").toLowerCase();
+  const channel = String(item.channelTitle || "").toLowerCase();
+  const tokens = aliases.flatMap(x => String(x).toLowerCase().split(/[^\p{L}\p{N}]+/u)).filter(x => x.length >= 3);
+  let score = 0;
+  for (const token of new Set(tokens)) if (title.includes(token)) score += 1.2;
+  const n = String(episode);
+  const patterns = [
+    new RegExp("(?:серия|эпизод|episode|ep\\.?)[^0-9]{0,5}0*" + n + "(?:\\D|$)", "i"),
+    new RegExp("(?:^|\\D)0*" + n + "[^0-9]{0,5}(?:серия|эпизод|episode|ep\\.?)", "i"),
+    new RegExp("(?:^|\\D)0*" + n + "(?:\\D|$)", "i")
+  ];
+  if (patterns[0].test(title) || patterns[1].test(title)) score += 10;
+  else if (patterns[2].test(title)) score += 3;
+  if (item.duration >= 900 && item.duration <= 2400) score += 5;
+  else if (item.duration >= 600) score += 2;
+  else if (item.duration && item.duration < 240) score -= 6;
+  if (/трейлер|тизер|обзор|реакц|нарезк|shorts?|amv|edit|opening|ending|op\b|ed\b/i.test(title)) score -= 8;
+  if (/official|официальн/i.test(title + " " + channel)) score += 1.5;
+  return score;
+}
+async function searchYouTubeEpisode(aliases, episode, signal) {
+  if (!YOUTUBE_API_KEY) return { configured:false, items:[] };
+  const queries = [];
+  for (const name of aliases.slice(0,3)) {
+    queries.push(`${name} episode ${episode}`);
+    queries.push(`${name} серия ${episode}`);
+  }
+  const collected = new Map();
+  for (const q of queries.slice(0,4)) {
+    const u = new URL("https://www.googleapis.com/youtube/v3/search");
+    u.searchParams.set("part","snippet");
+    u.searchParams.set("type","video");
+    u.searchParams.set("maxResults","10");
+    u.searchParams.set("q",q);
+    u.searchParams.set("safeSearch","strict");
+    u.searchParams.set("videoEmbeddable","true");
+    u.searchParams.set("relevanceLanguage","ru");
+    u.searchParams.set("regionCode","RU");
+    u.searchParams.set("key",YOUTUBE_API_KEY);
+    const response = await fetch(u,{signal,headers:{"Accept":"application/json"}});
+    const data = await response.json();
+    if (!response.ok || data.error) {
+      const msg = data?.error?.message || "YouTube API недоступен";
+      const err = new Error(msg);
+      err.code = "YOUTUBE_API_ERROR";
+      throw err;
+    }
+    for (const x of (Array.isArray(data.items)?data.items:[])) {
+      const id = String(x?.id?.videoId || "");
+      if (!id || collected.has(id)) continue;
+      collected.set(id,{
+        id,
+        title:String(x?.snippet?.title || ""),
+        channelTitle:String(x?.snippet?.channelTitle || ""),
+        thumbnail:String(x?.snippet?.thumbnails?.high?.url || x?.snippet?.thumbnails?.medium?.url || ""),
+        duration:0
+      });
+    }
+    if (collected.size >= 18) break;
+  }
+  const ids=[...collected.keys()].slice(0,20);
+  if(ids.length){
+    const u=new URL("https://www.googleapis.com/youtube/v3/videos");
+    u.searchParams.set("part","contentDetails,status");
+    u.searchParams.set("id",ids.join(","));
+    u.searchParams.set("key",YOUTUBE_API_KEY);
+    const response=await fetch(u,{signal,headers:{"Accept":"application/json"}});
+    const data=await response.json();
+    if(response.ok && !data.error){
+      for(const v of (Array.isArray(data.items)?data.items:[])){
+        const item=collected.get(String(v.id||""));
+        if(!item)continue;
+        item.duration=parseYouTubeDuration(v?.contentDetails?.duration);
+        item.embeddable=v?.status?.embeddable!==false;
+        item.privacyStatus=String(v?.status?.privacyStatus||"");
+      }
+    }
+  }
+  const items=[...collected.values()].filter(x=>x.embeddable!==false && (!x.privacyStatus || x.privacyStatus==="public"));
+  return {configured:true,items};
+}
+
 function scoreEpisodeCandidate(item, aliases, episode) {
   const title = String(item.title || "").toLowerCase();
   const tokens = aliases.flatMap(x => String(x).toLowerCase().split(/[^\p{L}\p{N}]+/u)).filter(x => x.length >= 3);
@@ -643,42 +732,38 @@ app.post("/api/anime/episode-source", requireAuth, async (req, res) => {
   ].filter(Boolean).slice(0,8);
   if (!aliases.length) return res.status(400).json({ error:"Не удалось определить название аниме" });
 
-  const queries = [];
-  for (const name of aliases.slice(0,4)) {
-    queries.push(`${name} ${episode} серия`);
-    queries.push(`${name} серия ${episode}`);
-    queries.push(`${name} episode ${episode}`);
-  }
-
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 12000);
+  const timer = setTimeout(() => controller.abort(), 10000);
   try {
-    const all = [];
-    for (const q of queries) {
-      const found = await fetchRutubeCandidates(q, controller.signal);
-      for (const item of found) if (!all.some(x=>x.id===item.id)) all.push(item);
-      if (all.length >= 18) break;
+    const yt = await searchYouTubeEpisode(aliases, episode, controller.signal);
+    if (!yt.configured) {
+      return res.status(503).json({
+        error:"Поиск серий ещё не подключён: добавьте YOUTUBE_API_KEY в Render.",
+        code:"YOUTUBE_NOT_CONFIGURED"
+      });
     }
-    const ranked = all
-      .map(item => ({item,score:scoreEpisodeCandidate(item,aliases,episode)}))
+    const ranked = yt.items
+      .map(item => ({item,score:scoreYouTubeEpisode(item,aliases,episode)}))
       .sort((a,b)=>b.score-a.score);
     const best = ranked[0];
     if (!best || best.score < 5) {
-      return res.status(404).json({ error:"Эту серию пока не удалось найти в доступном источнике" });
+      return res.status(404).json({ error:"Эту серию не удалось уверенно найти в доступном источнике" });
     }
     res.json({
       source:{
-        type:"rutube",
-        url:`https://rutube.ru/video/${best.item.id}/`,
-        embedUrl:`https://rutube.ru/play/embed/${best.item.id}/`,
+        type:"youtube",
+        url:`https://www.youtube.com/watch?v=${best.item.id}`,
         title:best.item.title,
         thumbnail:best.item.thumbnail,
         duration:best.item.duration
       }
     });
   } catch(error) {
-    res.status(502).json({ error:error?.name==="AbortError"?"Источник отвечает слишком долго":"Не удалось найти серию" });
-  } finally { clearTimeout(timer); }
+    const msg = error?.name==="AbortError" ? "Источник отвечает слишком долго" : String(error?.message || "Не удалось найти серию");
+    res.status(502).json({ error:msg, code:error?.code || "EPISODE_SOURCE_ERROR" });
+  } finally {
+    clearTimeout(timer);
+  }
 });
 
 // Rooms
