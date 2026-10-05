@@ -2130,3 +2130,32 @@ body.manga-mode .episode-region-note{
 body.manga-mode .library-item{background:#fff!important;color:#050505!important;border:3px solid #050505!important}
 body.manga-mode .library-item.selected,body.manga-mode .library-item:hover{background:#050505!important;color:#fff!important}
 @media(max-width:700px){.media-source-tabs button{font-size:7px;padding:10px 4px}.library-item{grid-template-columns:40px 1fr 22px}.library-episode{width:40px;height:40px}}
+
+/* v50 — Telegram library browser */
+.media-source-tabs{grid-template-columns:repeat(3,minmax(0,1fr))}
+.library-head{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-bottom:12px}
+.library-head h3{margin-top:4px;font-size:19px}
+.library-status{min-height:25px;padding:4px 2px 10px;color:var(--muted);font-size:9px;line-height:1.5}
+.library-list{display:grid;gap:7px;max-height:410px;overflow:auto;padding-right:3px}
+.library-item{
+  appearance:none;display:grid;grid-template-columns:48px 1fr 28px;align-items:center;gap:10px;
+  width:100%;padding:9px;border:1px solid #3b3244;background:#100d15;color:var(--paper);
+  text-align:left;cursor:pointer;transition:.16s
+}
+.library-item:hover,.library-item.selected{border-color:#a079bd;background:#18101f;transform:translateY(-1px)}
+.library-episode{display:grid;place-items:center;width:48px;height:48px;border:1px solid #574663;background:#09070c;font-family:var(--manga-head);font-style:italic;font-size:14px}
+.library-copy{min-width:0}.library-copy strong{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px}
+.library-copy small{display:block;margin-top:5px;color:var(--muted);font-size:8px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.library-play{display:grid;place-items:center;color:#d4bfdc}
+.library-empty{display:grid;gap:5px;padding:18px;border:1px dashed #45394f;color:var(--muted);text-align:center}
+.library-empty b{color:var(--paper);font-size:11px}.library-empty span{font-size:8px;line-height:1.5}
+body.manga-mode .library-item{background:#fff!important;color:#050505!important;border:3px solid #050505!important}
+body.manga-mode .library-item:hover,body.manga-mode .library-item.selected{background:#050505!important;color:#fff!important;transform:none!important}
+body.manga-mode .library-item.selected small,body.manga-mode .library-item:hover small{color:#ddd!important}
+body.manga-mode .library-episode{background:#fff!important;color:#050505!important;border:2px solid #050505!important}
+body.manga-mode .library-item:hover .library-episode,body.manga-mode .library-item.selected .library-episode{background:#fff!important;color:#050505!important}
+@media(max-width:700px){
+  .media-source-tabs button{font-size:7px;padding:10px 5px}
+  .library-head{align-items:flex-start}.library-head h3{font-size:14px}.library-head .btn{padding:8px 10px}
+  .library-item{grid-template-columns:42px 1fr 24px}.library-episode{width:42px;height:42px;font-size:12px}
+}
