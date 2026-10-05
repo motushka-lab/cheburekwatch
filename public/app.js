@@ -54,7 +54,7 @@ function cwJoke(){return CW_JOKES[Math.floor(Math.random()*CW_JOKES.length)]}
 
 const SITE_ASSETS={
   heroVideo:"/site-assets/hero/main-intro.mp4",
-  heroDesktop:"/site-assets/hero/main-intro-desktop-v2.mp4",
+  heroDesktop:"/media/main-intro-desktop.mp4",
   heroDesktopFinal:"/site-assets/hero/main-intro-final.jpg",
   heroFinal:"/site-assets/hero/main-intro-final.jpg",
   photos:[
@@ -143,6 +143,34 @@ function setupAmbientVideos(){
   const videos=[...document.querySelectorAll(".ambient-video")];
   if(!videos.length)return;
   const reduced=window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
+
+  videos.forEach(v=>{
+    const loopStart=Number(v.dataset.loopStart);
+    const loopEnd=Number(v.dataset.loopEnd);
+    const hasSegment=Number.isFinite(loopStart)&&Number.isFinite(loopEnd)&&loopEnd>loopStart;
+
+    if(hasSegment){
+      const armSegment=()=>{
+        try{
+          if(v.currentTime<loopStart || v.currentTime>=loopEnd)v.currentTime=loopStart;
+        }catch{}
+      };
+      if(v.readyState>=1)armSegment();
+      else v.addEventListener("loadedmetadata",armSegment,{once:true});
+
+      v.addEventListener("timeupdate",()=>{
+        if(v.currentTime>=loopEnd-.035){
+          try{v.currentTime=loopStart}catch{}
+          if(!v.paused)v.play().catch(()=>{});
+        }
+      });
+      v.addEventListener("ended",()=>{
+        try{v.currentTime=loopStart}catch{}
+        v.play().catch(()=>{});
+      });
+    }
+  });
+
   if(reduced){videos.forEach(v=>v.pause());return}
   if(!("IntersectionObserver" in window)){videos.forEach(v=>v.play().catch(()=>{}));return}
   const observer=new IntersectionObserver(entries=>{
@@ -157,99 +185,21 @@ function setupAmbientVideos(){
 function setupMainHeroVideo(){
   const v=document.querySelector("#mainHeroVideo");
   if(!v)return;
-
   const desktop=window.matchMedia?.("(min-width: 901px)")?.matches;
+  if(desktop)return;
+
   const reduced=window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
-  const hero=v.closest(".hero");
-  const loopStart=3;
+  if(reduced){v.pause();return}
 
   v.muted=true;
   v.defaultMuted=true;
-  v.volume=0;
-  v.autoplay=true;
   v.playsInline=true;
-  v.setAttribute("muted","");
-  v.setAttribute("autoplay","");
-
-  if(desktop && v.getAttribute("src")!==SITE_ASSETS.heroDesktop){
-    v.src=SITE_ASSETS.heroDesktop;
-    v.poster=SITE_ASSETS.heroDesktopFinal;
-    v.load();
-  }
-
-  const pulse=()=>{
-    hero?.classList.remove("hero-loop-pulse");
-    void hero?.offsetWidth;
-    hero?.classList.add("hero-loop-pulse");
-    setTimeout(()=>hero?.classList.remove("hero-loop-pulse"),180);
-  };
-
-  const replayLoop=()=>{
-    if(!v.isConnected)return;
-    const safeStart=Number.isFinite(v.duration)&&v.duration>loopStart+.15?loopStart:0;
-    try{v.currentTime=safeStart}catch{}
-    pulse();
+  const start=()=>{
+    try{v.currentTime=0}catch{}
     v.play().catch(()=>{});
   };
-
-  if(reduced){
-    const freeze=()=>{
-      if(Number.isFinite(v.duration)&&v.duration>.08){
-        try{v.currentTime=Math.max(0,v.duration-.05)}catch{}
-      }
-      v.pause();
-    };
-    if(v.readyState>=1)freeze();else v.addEventListener("loadedmetadata",freeze,{once:true});
-    return;
-  }
-
-  // First pass is always 0 -> end. Every following pass loops the last ~2 seconds.
-  v.addEventListener("ended",replayLoop);
-  let desktopHeroRetry=false;
-  v.addEventListener("error",()=>{
-    if(!desktop || desktopHeroRetry || !v.isConnected)return;
-    desktopHeroRetry=true;
-    const join=SITE_ASSETS.heroDesktop.includes("?")?"&":"?";
-    v.src=SITE_ASSETS.heroDesktop+join+"fresh=36";
-    v.load();
-    setTimeout(()=>{try{v.currentTime=0}catch{};v.play().catch(()=>{})},120);
-  });
-
-  let started=false;
-  const startFromZero=()=>{
-    if(started||!v.isConnected)return;
-    started=true;
-    try{v.currentTime=0}catch{}
-    const p=v.play();
-    if(p?.catch){
-      p.catch(()=>{
-        started=false;
-        v.addEventListener("canplay",()=>{
-          if(started||!v.isConnected)return;
-          started=true;
-          try{v.currentTime=0}catch{}
-          v.play().catch(()=>{started=false});
-        },{once:true});
-      });
-    }
-  };
-
-  if(document.querySelector(".intro")){
-    window.addEventListener("cw:intro-finished",startFromZero,{once:true});
-  }else{
-    startFromZero();
-  }
-
-  // Extra autoplay recovery for desktop browsers that pause media while the intro is fading.
-  setTimeout(()=>{if(v.isConnected&&v.paused&&!started)startFromZero()},700);
-  const retry=()=>{
-    if(v.isConnected&&v.paused){
-      started=false;
-      startFromZero();
-    }
-  };
-  window.addEventListener("pointerdown",retry,{once:true,passive:true});
-  window.addEventListener("keydown",retry,{once:true});
+  if(document.querySelector(".intro"))window.addEventListener("cw:intro-finished",start,{once:true});
+  else start();
 }
 async function api(url, options={}) {
   const headers={"Content-Type":"application/json", ...(options.headers||{})};
@@ -455,7 +405,7 @@ async function landingPage(){
 
   const desktopHero=window.matchMedia?.("(min-width: 901px)")?.matches;
   const heroMedia=desktopHero
-    ? `<video id="mainHeroVideo" class="hero-image hero-main-video hero-main-video-desktop" src="${SITE_ASSETS.heroDesktop}" poster="${SITE_ASSETS.heroDesktopFinal}" muted autoplay playsinline preload="auto"></video>`
+    ? `<video id="mainHeroVideo" class="hero-image hero-main-video hero-main-video-desktop ambient-video" data-loop-start="3" data-loop-end="5" src="${SITE_ASSETS.heroDesktop}" muted playsinline preload="metadata"></video>`
     : `<video id="mainHeroVideo" class="hero-image hero-main-video" src="${SITE_ASSETS.heroVideo}" poster="${SITE_ASSETS.heroFinal}" muted autoplay playsinline preload="auto"></video>`;
 
   shell(`<main>
