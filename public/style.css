@@ -2327,3 +2327,464 @@ button:focus-visible,a:focus-visible,input:focus-visible{
   position:relative!important;
   z-index:1!important;
 }
+
+
+/* =========================================================
+   V22 — EDITORIAL CINEMA REDESIGN
+   Direction: real cinema / poster wall / restrained motion.
+   No layout-changing transforms, no giant text, no glow soup.
+   ========================================================= */
+
+:root{
+  --cw-bg:#090808;
+  --cw-surface:#12100f;
+  --cw-surface-2:#181412;
+  --cw-line:rgba(255,239,226,.11);
+  --cw-line-strong:rgba(255,239,226,.19);
+  --cw-ink:#f5eee7;
+  --cw-muted:#a99f98;
+  --cw-accent:#e45745;
+  --cw-accent-2:#f0a15f;
+  --cw-radius:18px;
+}
+
+/* Base */
+html{background:var(--cw-bg)!important;scroll-behavior:smooth}
+body{
+  background:
+    radial-gradient(circle at 78% -10%,rgba(228,87,69,.08),transparent 30%),
+    linear-gradient(180deg,#0b0908 0%,#090808 55%,#0d0b0a 100%)!important;
+  color:var(--cw-ink)!important;
+}
+body:before{
+  content:"";
+  position:fixed;
+  inset:0;
+  pointer-events:none;
+  z-index:0;
+  opacity:.035;
+  background-image:url("/media/meme-machine.jpg");
+  background-size:cover;
+  background-position:center;
+  mix-blend-mode:screen;
+  filter:grayscale(1) contrast(1.2);
+}
+.app{position:relative;z-index:1;max-width:1440px;margin:0 auto}
+.page{max-width:1280px!important;margin:0 auto!important;padding-left:28px!important;padding-right:28px!important}
+.muted{color:var(--cw-muted)!important}
+.eyebrow{letter-spacing:.16em!important;color:#b9aaa1!important;font-size:10px!important}
+.title,.hero-title,h1,h2,h3{letter-spacing:-.025em!important}
+
+/* Navigation: quiet, expensive, readable */
+.nav{
+  position:sticky!important;
+  top:0!important;
+  z-index:900!important;
+  height:64px!important;
+  padding:0 24px!important;
+  background:rgba(10,9,8,.86)!important;
+  backdrop-filter:blur(18px)!important;
+  border-bottom:1px solid var(--cw-line)!important;
+  box-shadow:0 8px 30px rgba(0,0,0,.22)!important;
+}
+.brand{gap:10px!important;text-shadow:none!important}
+.brand-mark{
+  border-radius:10px!important;
+  background:var(--cw-accent)!important;
+  box-shadow:none!important;
+  color:#fff!important;
+}
+.brand-word{font-size:14px!important;font-weight:800!important;letter-spacing:-.02em!important}
+.navlinks{gap:4px!important}
+.navlink,.nav-logout{
+  border-radius:9px!important;
+  color:#bcb2ab!important;
+  transition:background .2s ease,color .2s ease,transform .2s ease!important;
+}
+.navlink:hover,.nav-logout:hover{background:rgba(255,255,255,.06)!important;color:#fff!important}
+.userpill{color:#c9beb7!important}
+
+/* Page entrance — subtle and consistent */
+.page>*{
+  animation:cwEditorialIn .55s cubic-bezier(.2,.75,.25,1) both;
+}
+.page>*:nth-child(2){animation-delay:.04s}
+.page>*:nth-child(3){animation-delay:.08s}
+.page>*:nth-child(4){animation-delay:.12s}
+@keyframes cwEditorialIn{
+  from{opacity:0;transform:translateY(10px)}
+  to{opacity:1;transform:none}
+}
+
+/* Home hero: poster + editorial copy */
+.hero.hero-v11{
+  min-height:620px!important;
+  margin-top:22px!important;
+  padding:46px!important;
+  border:1px solid var(--cw-line)!important;
+  border-radius:28px!important;
+  background:
+    linear-gradient(90deg,rgba(8,7,6,.98) 0%,rgba(8,7,6,.86) 43%,rgba(8,7,6,.44) 100%),
+    url("/media/hero-selfie.jpg") 78% center/cover no-repeat!important;
+  box-shadow:0 28px 80px rgba(0,0,0,.42)!important;
+}
+.hero.hero-v11:after{
+  content:"CHEBUREK PICTURE HOUSE";
+  position:absolute;
+  right:28px;
+  bottom:20px;
+  color:rgba(255,255,255,.32);
+  font-size:9px;
+  letter-spacing:.18em;
+}
+.hero-copy{max-width:650px!important}
+.hero-title{
+  font-size:clamp(52px,6.2vw,88px)!important;
+  line-height:.9!important;
+  max-width:720px!important;
+}
+.hero-line-accent{color:#d9cdc5!important}
+.hero-line-accent strong{color:var(--cw-accent)!important}
+.hero-sub{
+  max-width:570px!important;
+  color:#bdb1aa!important;
+  font-size:15px!important;
+  line-height:1.65!important;
+}
+.hero-rail{align-self:end!important}
+.hero-main-cta{
+  background:var(--cw-accent)!important;
+  border-color:var(--cw-accent)!important;
+  box-shadow:0 12px 30px rgba(228,87,69,.18)!important;
+}
+.hero-secondary-cta{
+  background:rgba(255,255,255,.045)!important;
+  border-color:var(--cw-line-strong)!important;
+}
+
+/* Posters */
+.hero-art{filter:none!important}
+.poster{
+  border:1px solid rgba(255,255,255,.16)!important;
+  box-shadow:0 22px 50px rgba(0,0,0,.42)!important;
+}
+.poster-shade{background:linear-gradient(180deg,transparent 35%,rgba(0,0,0,.82))!important}
+.poster-copy b{letter-spacing:-.02em!important}
+
+/* Sections */
+.section-head{
+  margin-top:54px!important;
+  margin-bottom:16px!important;
+  border-bottom:1px solid var(--cw-line)!important;
+  padding-bottom:14px!important;
+}
+.section-head h2{font-size:28px!important}
+.cards{gap:14px!important}
+.card,.glass-section,.stat-card,.achievement{
+  border:1px solid var(--cw-line)!important;
+  background:linear-gradient(145deg,#151211,#0f0d0c)!important;
+  box-shadow:0 18px 55px rgba(0,0,0,.25)!important;
+  border-radius:18px!important;
+}
+.room-card{
+  position:relative;
+  transition:transform .25s ease,border-color .25s ease,box-shadow .25s ease!important;
+}
+.room-card:hover{
+  transform:translateY(-4px)!important;
+  border-color:var(--cw-line-strong)!important;
+  box-shadow:0 25px 60px rgba(0,0,0,.36)!important;
+}
+.room-card:after{
+  content:"";
+  position:absolute;
+  inset:auto 0 0 0;
+  height:3px;
+  background:linear-gradient(90deg,var(--cw-accent),var(--cw-accent-2));
+  opacity:.7;
+}
+.room-glow{opacity:0!important}
+
+/* Add photography to room cards without making them noisy */
+.room-card:before{
+  content:"";
+  display:block;
+  height:92px;
+  margin:-1px -1px 16px;
+  border-radius:18px 18px 0 0;
+  background:
+    linear-gradient(180deg,rgba(0,0,0,.05),rgba(0,0,0,.72)),
+    url("/media/meme-ghost.jpg") center 42%/cover no-repeat;
+  filter:saturate(.78);
+}
+.room-card:nth-child(2n):before{background-image:linear-gradient(180deg,rgba(0,0,0,.05),rgba(0,0,0,.72)),url("/media/meme-couple.jpg")}
+.room-card:nth-child(3n):before{background-image:linear-gradient(180deg,rgba(0,0,0,.05),rgba(0,0,0,.72)),url("/media/meme-machine.jpg")}
+.room-card .room-top,.room-card .room-name,.room-card .stat,.room-card .room-open{position:relative;z-index:2}
+
+/* Join card */
+.join-card{
+  padding:14px!important;
+  background:#11100f!important;
+}
+.join-code-input{
+  background:#0b0a09!important;
+  border:1px solid var(--cw-line)!important;
+  color:#fff!important;
+}
+.join-code-input::placeholder{color:#746c67!important}
+.secondary{
+  background:#1b1816!important;
+  border:1px solid var(--cw-line-strong)!important;
+  color:#eee5df!important;
+}
+
+/* Archive becomes a real poster wall */
+.cw-archive{
+  margin-top:42px!important;
+  padding:26px!important;
+  background:#100e0d!important;
+}
+.cw-photo-grid{gap:12px!important}
+.cw-photo-card{
+  border:1px solid var(--cw-line)!important;
+  border-radius:14px!important;
+  background:#0d0c0b!important;
+  transition:transform .3s ease,border-color .3s ease!important;
+}
+.cw-photo-card:hover{
+  transform:translateY(-5px)!important;
+  border-color:rgba(255,255,255,.24)!important;
+}
+.cw-photo-media{background:#171412!important}
+.cw-photo-media img{filter:saturate(.82) contrast(1.04)!important}
+.cw-photo-shine{display:none!important}
+
+/* Fun strip */
+.fun-strip{gap:12px!important}
+.fun-card{
+  border:1px solid var(--cw-line)!important;
+  background:#11100f!important;
+  border-radius:14px!important;
+  transition:transform .22s ease,background .22s ease!important;
+}
+.fun-card:hover{transform:translateY(-3px)!important;background:#171412!important}
+
+/* Room page */
+.room-page{
+  max-width:1280px!important;
+  margin:0 auto!important;
+  padding:20px 28px 36px!important;
+}
+.room-header{
+  position:relative!important;
+  overflow:hidden!important;
+  padding:22px 24px!important;
+  border:1px solid var(--cw-line)!important;
+  border-radius:20px!important;
+  background:
+    linear-gradient(90deg,rgba(10,9,8,.96),rgba(10,9,8,.82)),
+    url("/media/meme-couple.jpg") right center/420px auto no-repeat!important;
+}
+.room-header:after{
+  content:"";
+  position:absolute;
+  right:0;top:0;bottom:0;width:220px;
+  background:linear-gradient(90deg,rgba(10,9,8,0),rgba(10,9,8,.7));
+  pointer-events:none;
+}
+.room-header>*{position:relative;z-index:2}
+.room-header .title{font-size:clamp(30px,4vw,48px)!important}
+.room-header .code{color:var(--cw-accent)!important}
+.room-actions{position:relative;z-index:3}
+.outline-btn,.danger-outline{
+  background:rgba(255,255,255,.045)!important;
+  border-color:var(--cw-line-strong)!important;
+  color:#eee5df!important;
+}
+.danger-outline{color:#ff9a90!important}
+
+/* Player + chat: fix clipping and stacking */
+.roomlayout{
+  margin-top:14px!important;
+  gap:14px!important;
+  align-items:stretch!important;
+}
+.panel{
+  min-width:0!important;
+  overflow:hidden!important;
+  border:1px solid var(--cw-line)!important;
+  border-radius:18px!important;
+  background:#100e0d!important;
+  box-shadow:0 20px 60px rgba(0,0,0,.3)!important;
+}
+.video-shell{
+  min-width:0!important;
+  overflow:hidden!important;
+  border:0!important;
+  background:#050505!important;
+}
+.toolbar{
+  min-width:0!important;
+  padding:12px!important;
+  background:#0f0d0c!important;
+  border-top:1px solid var(--cw-line)!important;
+}
+.mediaform{min-width:0!important}
+.mediaform input{min-width:0!important;background:#0b0a09!important}
+.chat{min-width:0!important;overflow:hidden!important;background:#100e0d!important}
+.chat-headline{padding:14px 16px!important}
+.messages{
+  min-width:0!important;
+  overflow-x:hidden!important;
+  overscroll-behavior:contain;
+}
+.msg{
+  max-width:100%!important;
+  overflow-wrap:anywhere!important;
+  word-break:break-word!important;
+  border-radius:12px!important;
+  background:#171412!important;
+}
+.msgtext{overflow-wrap:anywhere!important;word-break:break-word!important}
+
+/* Player overlay always stays inside the player */
+.player-overlay{z-index:30!important;pointer-events:none!important}
+.player-overlay>*{pointer-events:auto}
+.overlay-chat{
+  z-index:50!important;
+  max-width:min(360px,calc(100% - 20px))!important;
+  overflow:hidden!important;
+}
+.overlay-messages{overflow-x:hidden!important;overflow-y:auto!important}
+.overlay-messages .msg{max-width:100%!important}
+
+/* Participants */
+.participants{
+  border-bottom:1px solid var(--cw-line)!important;
+}
+.person,.participant,.user-row{
+  min-width:0!important;
+}
+.person-name,.participant-name,.user-name{
+  min-width:0!important;
+  overflow:hidden!important;
+  text-overflow:ellipsis!important;
+  white-space:nowrap!important;
+}
+
+/* Auth: poster-card instead of generic form */
+.auth{
+  position:relative!important;
+  isolation:isolate!important;
+  max-width:460px!important;
+  margin:8vh auto!important;
+  padding:38px!important;
+  border:1px solid var(--cw-line)!important;
+  border-radius:22px!important;
+  background:
+    linear-gradient(180deg,rgba(12,10,9,.94),rgba(12,10,9,.98)),
+    url("/media/hero-kitty.jpg") center/cover!important;
+  box-shadow:0 30px 90px rgba(0,0,0,.5)!important;
+}
+.auth:before{
+  content:"CHEBUREK PICTURE HOUSE";
+  display:block;
+  margin-bottom:34px;
+  color:#8f837b;
+  font-size:9px;
+  letter-spacing:.2em;
+}
+.auth .title{font-size:42px!important}
+.auth .primary{background:var(--cw-accent)!important;border-color:var(--cw-accent)!important}
+
+/* Creator modal: no more hidden-behind-content bugs */
+.creator-modal{
+  z-index:10000!important;
+  padding:20px!important;
+  overflow:auto!important;
+}
+.creator-card{
+  width:min(620px,100%)!important;
+  max-height:min(760px,calc(100vh - 40px))!important;
+  overflow:auto!important;
+  border:1px solid var(--cw-line-strong)!important;
+  background:#110f0e!important;
+  box-shadow:0 35px 100px rgba(0,0,0,.65)!important;
+}
+
+/* Toasts and dialogs */
+.cw-toast{z-index:11000!important}
+.reaction-menu{
+  z-index:12000!important;
+  max-width:calc(100vw - 24px)!important;
+}
+
+/* Inputs and long text */
+input,button,textarea,select{font:inherit}
+input,textarea{min-width:0;max-width:100%}
+button{white-space:nowrap}
+.footerhint,.room-header .muted,.creator-sub,.creator-quote{
+  overflow-wrap:anywhere!important;
+}
+
+/* Mobile: stable stacking, no horizontal drift */
+@media(max-width:800px){
+  .nav{height:58px!important;padding:0 10px!important}
+  .page,.room-page{padding-left:10px!important;padding-right:10px!important}
+  .hero.hero-v11{
+    min-height:0!important;
+    margin-top:10px!important;
+    padding:24px 18px 20px!important;
+    border-radius:20px!important;
+    background:
+      linear-gradient(180deg,rgba(8,7,6,.84),rgba(8,7,6,.97)),
+      url("/media/hero-selfie.jpg") center/cover no-repeat!important;
+  }
+  .hero-title{font-size:clamp(42px,12vw,64px)!important}
+  .hero-sub{font-size:14px!important}
+  .hero-art{opacity:.55!important;transform:scale(.78)!important}
+  .hero-rail{width:100%!important}
+  .hero-actions{display:grid!important;grid-template-columns:1fr!important}
+  .section-head{margin-top:34px!important}
+  .room-header{
+    padding:18px!important;
+    background:
+      linear-gradient(180deg,rgba(10,9,8,.9),rgba(10,9,8,.97)),
+      url("/media/meme-couple.jpg") center/cover no-repeat!important;
+  }
+  .room-header:after{display:none}
+  .room-actions{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important}
+  .room-actions>*{min-width:0!important}
+  .roomlayout{gap:8px!important}
+  .panel{border-radius:14px!important}
+  .mediaform{display:grid!important;grid-template-columns:minmax(0,1fr) auto!important}
+  .mediaform input{width:100%!important}
+  .mobile-media-toggle{flex:none!important}
+  .chat{min-height:0!important}
+  .messages{padding:10px!important}
+  .auth{
+    margin:4vh 10px!important;
+    padding:28px 20px!important;
+  }
+  .auth .title{font-size:36px!important}
+  .cw-archive{padding:18px!important}
+}
+@media(max-width:520px){
+  .brand-word{display:none!important}
+  .room-actions{grid-template-columns:1fr!important}
+  .hero-title{font-size:43px!important}
+  .hero-art{display:none!important}
+  .hero.hero-v11:after{display:none}
+  .cards{grid-template-columns:1fr!important}
+  .fun-strip{grid-template-columns:1fr!important}
+  .cw-photo-grid{grid-template-columns:1fr 1fr!important}
+  .archive-head{gap:14px!important}
+  .room-header .title{font-size:32px!important}
+  .mediaform{grid-template-columns:1fr!important}
+  .mediaform button{width:100%!important}
+  .mobile-media-toggle{height:40px!important}
+}
+@media(prefers-reduced-motion:reduce){
+  .page>*{animation:none!important}
+  .room-card,.cw-photo-card,.fun-card,.mobile-media-toggle{transition:none!important}
+}
