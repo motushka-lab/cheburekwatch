@@ -469,6 +469,7 @@ app.get("/api/anime/search", async (req, res) => {
       media(search: $search, type: ANIME, sort: [SEARCH_MATCH, POPULARITY_DESC]) {
         id
         title { romaji english native }
+        synonyms
         coverImage { extraLarge large color }
         bannerImage
         seasonYear
@@ -520,6 +521,7 @@ app.get("/api/anime/search", async (req, res) => {
         title,
         romaji: String(x.title?.romaji || ""),
         native: String(x.title?.native || ""),
+        synonyms: Array.isArray(x.synonyms) ? x.synonyms.map(v=>String(v)).filter(Boolean).slice(0,8) : [],
         poster: String(x.coverImage?.extraLarge || x.coverImage?.large || ""),
         banner: String(x.bannerImage || ""),
         color: String(x.coverImage?.color || ""),
@@ -541,65 +543,142 @@ app.get("/api/anime/search", async (req, res) => {
   }
 });
 
+function rutubeIdFromValue(value) {
+  const s = String(value || "");
+  const m = s.match(/(?:rutube\.ru\/(?:video|play\/embed)\/)([A-Za-z0-9_-]{16,80})/i);
+  return m ? m[1] : "";
+}
+function normalizeRutubeSearchPayload(data) {
+  const raw =
+    (Array.isArray(data?.results) && data.results) ||
+    (Array.isArray(data?.items) && data.items) ||
+    (Array.isArray(data?.data?.results) && data.data.results) ||
+    (Array.isArray(data?.data?.items) && data.data.items) ||
+    [];
+  return raw.map(entry => entry?.object || entry?.video || entry?.content || entry).map(v => {
+    const id = String(v?.id || v?.video_id || v?.code || rutubeIdFromValue(v?.url) || rutubeIdFromValue(v?.video_url) || rutubeIdFromValue(v?.embed_url) || "");
+    const author = v?.author || v?.owner || {};
+    return {
+      id,
+      title: String(v?.title || v?.name || "Без названия"),
+      thumbnail: String(v?.thumbnail_url || v?.picture_url || v?.poster_url || v?.thumbnail || v?.image || ""),
+      duration: Math.max(0, Number(v?.duration || v?.duration_seconds || 0)),
+      views: Math.max(0, Number(v?.views_count || v?.hits || v?.views || 0)),
+      author: String(author?.name || author?.username || v?.feed_name || v?.channel || ""),
+      paid: Boolean(v?.is_paid),
+      age: Number(v?.pg_rating?.age || v?.age_limit || 0)
+    };
+  }).filter(v => /^[A-Za-z0-9_-]{16,80}$/.test(v.id) && v.title && !v.paid && (!v.age || v.age < 18));
+}
+async function fetchRutubeCandidates(query, signal) {
+  const urls = [
+    "https://rutube.ru/api/search/video/?query=" + encodeURIComponent(query) + "&page=1",
+    "https://rutube.ru/api/search/video/?query=" + encodeURIComponent(query) + "&page=1&limit=20"
+  ];
+  let lastError = null;
+  for (const url of urls) {
+    try {
+      const response = await fetch(url, {
+        signal,
+        headers: {
+          "Accept": "application/json, text/plain, */*",
+          "Accept-Language": "ru-RU,ru;q=0.9,en;q=0.6",
+          "Referer": "https://rutube.ru/",
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/131 Safari/537.36"
+        }
+      });
+      if (!response.ok) { lastError = new Error("RUTUBE HTTP " + response.status); continue; }
+      const data = await response.json();
+      const items = normalizeRutubeSearchPayload(data);
+      if (items.length) return items;
+    } catch (e) { lastError = e; }
+  }
+  if (lastError?.name === "AbortError") throw lastError;
+  return [];
+}
+function scoreEpisodeCandidate(item, aliases, episode) {
+  const title = String(item.title || "").toLowerCase();
+  const tokens = aliases.flatMap(x => String(x).toLowerCase().split(/[^\p{L}\p{N}]+/u)).filter(x => x.length >= 3);
+  let score = 0;
+  for (const token of new Set(tokens)) if (title.includes(token)) score += 1;
+  const n = String(episode);
+  const epPatterns = [
+    new RegExp("(?:серия|эпизод|episode|ep\\.?)[^0-9]{0,5}0*" + n + "(?:\\D|$)", "i"),
+    new RegExp("(?:^|\\D)0*" + n + "[^0-9]{0,5}(?:серия|эпизод|episode|ep\\.?)", "i")
+  ];
+  if (epPatterns.some(r => r.test(title))) score += 9;
+  if (item.duration >= 900 && item.duration <= 2400) score += 4;
+  else if (item.duration >= 600) score += 2;
+  else if (item.duration && item.duration < 240) score -= 5;
+  if (/трейлер|тизер|обзор|реакц|нарезк|shorts?|amv|edit/i.test(title)) score -= 7;
+  return score;
+}
+
 // Best-effort RUTUBE catalogue search. Playback uses RUTUBE's official embed player.
 app.get("/api/rutube/search", async (req, res) => {
   const q = String(req.query.q || "").trim().slice(0, 140);
   if (q.length < 2) return res.status(400).json({ error: "Введите хотя бы 2 символа" });
-
-  const url = new URL("https://rutube.ru/api/search/video/");
-  url.searchParams.set("query", q);
-  url.searchParams.set("page", "1");
-  url.searchParams.set("limit", "12");
-
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 9000);
   try {
-    const response = await fetch(url, {
-      signal: controller.signal,
-      headers: {
-        "Accept": "application/json, text/plain, */*",
-        "Accept-Language": "ru-RU,ru;q=0.9,en;q=0.6",
-        "Referer": "https://rutube.ru/",
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/131 Safari/537.36"
+    const items = (await fetchRutubeCandidates(q, controller.signal)).slice(0,12).map(v => ({
+      ...v,
+      url: `https://rutube.ru/video/${v.id}/`,
+      embedUrl: `https://rutube.ru/play/embed/${v.id}/`
+    }));
+    res.json({ query:q, count:items.length, items });
+  } catch(error) {
+    res.status(502).json({ error:error?.name==="AbortError"?"Источник отвечает слишком долго":"Не удалось выполнить поиск" });
+  } finally { clearTimeout(timer); }
+});
+
+// Resolve one anime episode automatically. Provider stays an implementation detail.
+app.post("/api/anime/episode-source", requireAuth, async (req, res) => {
+  const episode = Math.max(1, Math.min(9999, Math.floor(Number(req.body?.episode || 1))));
+  const aliases = [
+    String(req.body?.title || "").trim(),
+    String(req.body?.romaji || "").trim(),
+    String(req.body?.native || "").trim(),
+    ...(Array.isArray(req.body?.synonyms) ? req.body.synonyms.map(v=>String(v).trim()) : [])
+  ].filter(Boolean).slice(0,8);
+  if (!aliases.length) return res.status(400).json({ error:"Не удалось определить название аниме" });
+
+  const queries = [];
+  for (const name of aliases.slice(0,4)) {
+    queries.push(`${name} ${episode} серия`);
+    queries.push(`${name} серия ${episode}`);
+    queries.push(`${name} episode ${episode}`);
+  }
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 12000);
+  try {
+    const all = [];
+    for (const q of queries) {
+      const found = await fetchRutubeCandidates(q, controller.signal);
+      for (const item of found) if (!all.some(x=>x.id===item.id)) all.push(item);
+      if (all.length >= 18) break;
+    }
+    const ranked = all
+      .map(item => ({item,score:scoreEpisodeCandidate(item,aliases,episode)}))
+      .sort((a,b)=>b.score-a.score);
+    const best = ranked[0];
+    if (!best || best.score < 5) {
+      return res.status(404).json({ error:"Эту серию пока не удалось найти в доступном источнике" });
+    }
+    res.json({
+      source:{
+        type:"rutube",
+        url:`https://rutube.ru/video/${best.item.id}/`,
+        embedUrl:`https://rutube.ru/play/embed/${best.item.id}/`,
+        title:best.item.title,
+        thumbnail:best.item.thumbnail,
+        duration:best.item.duration
       }
     });
-    if (!response.ok) {
-      return res.status(502).json({ error: "RUTUBE не отдал результаты поиска", fallback: "https://rutube.ru/search/?query=" + encodeURIComponent(q) });
-    }
-    const data = await response.json();
-    const raw = Array.isArray(data?.results) ? data.results : [];
-    const items = raw.map(entry => entry?.object || entry).map(v => {
-      const id = String(v?.id || v?.video_id || v?.code || "");
-      const title = String(v?.title || v?.name || "Без названия");
-      const author = v?.author || v?.owner || {};
-      const thumb = String(v?.thumbnail_url || v?.picture_url || v?.poster_url || v?.thumbnail || "");
-      const duration = Math.max(0, Number(v?.duration || 0));
-      const views = Math.max(0, Number(v?.views_count || v?.hits || v?.views || 0));
-      const age = Number(v?.pg_rating?.age || v?.age_limit || 0);
-      const paid = Boolean(v?.is_paid);
-      return {
-        id, title, thumbnail: thumb, duration, views,
-        author: String(author?.name || author?.username || v?.feed_name || v?.channel || "RUTUBE"),
-        paid, age,
-        url: id ? `https://rutube.ru/video/${id}/` : "",
-        embedUrl: id ? `https://rutube.ru/play/embed/${id}/` : ""
-      };
-    }).filter(v => /^[A-Za-z0-9_-]{16,80}$/.test(v.id) && v.title && !v.paid && (!v.age || v.age < 18)).slice(0,12);
-
-    res.json({
-      query: q,
-      count: items.length,
-      items,
-      fallback: "https://rutube.ru/search/?query=" + encodeURIComponent(q)
-    });
-  } catch (error) {
-    res.status(502).json({
-      error: error?.name === "AbortError" ? "RUTUBE отвечает слишком долго" : "Не удалось выполнить поиск RUTUBE",
-      fallback: "https://rutube.ru/search/?query=" + encodeURIComponent(q)
-    });
-  } finally {
-    clearTimeout(timer);
-  }
+  } catch(error) {
+    res.status(502).json({ error:error?.name==="AbortError"?"Источник отвечает слишком долго":"Не удалось найти серию" });
+  } finally { clearTimeout(timer); }
 });
 
 // Rooms
