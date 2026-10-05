@@ -346,6 +346,78 @@ function joinByCode(code,errorTarget){
   return api(`/api/rooms/${code}/join`,{method:"POST"}).then(()=>{navigate("/room/"+code);return true}).catch(err=>{if(errorTarget)errorTarget.innerHTML=`<div class="error">${esc(err.message)}</div>`;else toast(err.message);return false});
 }
 
+
+function formatVideoDuration(total){
+  total=Math.max(0,Math.floor(Number(total)||0));
+  const h=Math.floor(total/3600),m=Math.floor((total%3600)/60),s=total%60;
+  return h?`${h}:${String(m).padStart(2,"0")}:${String(s).padStart(2,"0")}`:`${m}:${String(s).padStart(2,"0")}`;
+}
+function formatViews(v){
+  v=Math.max(0,Number(v)||0);
+  if(v>=1e6)return (v/1e6).toFixed(v>=1e7?0:1).replace(".0","")+" млн";
+  if(v>=1e3)return (v/1e3).toFixed(v>=1e4?0:1).replace(".0","")+" тыс.";
+  return String(Math.floor(v));
+}
+function vkSearchPanelHtml(id){
+  return `<section class="vk-search-panel" id="${id}" data-vk-search>
+    <div class="vk-search-head"><div><span class="eyebrow">VK VIDEO</span><h3>НАЙТИ КИНО СРАЗУ</h3></div><span class="vk-search-mark">VK</span></div>
+    <form class="vk-search-form" data-vk-search-form>
+      <label class="vk-search-box">${cwIcon("search",18)}<input data-vk-query maxlength="120" autocomplete="off" placeholder="Название фильма, сериала или видео"></label>
+      <button class="btn btn-primary" type="submit"><span class="btn-label">ИСКАТЬ</span></button>
+    </form>
+    <div class="vk-search-status" data-vk-status>Введите название — покажу результаты из VK Video.</div>
+    <div class="vk-search-results" data-vk-results></div>
+    <div class="vk-search-selected" data-vk-selected hidden></div>
+  </section>`;
+}
+function bindVkSearch(root,{onPick}={}){
+  if(!root || root.dataset.bound==="1")return;
+  root.dataset.bound="1";
+  const form=root.querySelector("[data-vk-search-form]");
+  const input=root.querySelector("[data-vk-query]");
+  const status=root.querySelector("[data-vk-status]");
+  const results=root.querySelector("[data-vk-results]");
+  const selected=root.querySelector("[data-vk-selected]");
+  let seq=0,items=[];
+
+  const render=()=>{
+    results.innerHTML=items.map((item,i)=>`<button class="vk-result" type="button" data-vk-pick="${i}">
+      <span class="vk-result-thumb">${item.thumbnail?`<img src="${esc(item.thumbnail)}" alt="" loading="lazy">`:'<i>VK</i>'}<b>${formatVideoDuration(item.duration)}</b></span>
+      <span class="vk-result-copy"><strong>${esc(item.title)}</strong><small>${formatViews(item.views)} просмотров · VK Video</small></span>
+      <span class="vk-result-play">${cwIcon("play",16)}</span>
+    </button>`).join("");
+    results.querySelectorAll("[data-vk-pick]").forEach(btn=>btn.onclick=()=>{
+      const item=items[Number(btn.dataset.vkPick)];
+      if(!item)return;
+      selected.hidden=false;
+      selected.innerHTML=`${cwIcon("check",15)}<span><b>${esc(item.title)}</b><small>Будет установлен в комнату</small></span>`;
+      results.querySelectorAll(".vk-result").forEach(x=>x.classList.remove("selected"));
+      btn.classList.add("selected");
+      onPick?.(item);
+    });
+  };
+
+  form.onsubmit=async e=>{
+    e.preventDefault();
+    const q=input.value.trim();
+    if(q.length<2){status.textContent="Введите хотя бы 2 символа.";return}
+    const request=++seq;
+    status.innerHTML='<span class="button-loader"></span> Ищу в VK Video…';
+    results.innerHTML="";
+    try{
+      const data=await api("/api/vk/search?q="+encodeURIComponent(q),{method:"GET"});
+      if(request!==seq)return;
+      items=Array.isArray(data.items)?data.items:[];
+      status.textContent=items.length?`Найдено: ${items.length}. Выберите нужное видео.`:"Ничего не нашлось. Попробуйте другой запрос.";
+      render();
+    }catch(err){
+      if(request!==seq)return;
+      items=[];results.innerHTML="";
+      status.innerHTML=`<span class="error-inline">${esc(err.message)}</span>`;
+    }
+  };
+}
+
 function openCreateRoomModal(){
   if(!me){navigate("/login");return}
   document.querySelector(".modal-backdrop")?.remove();
@@ -354,7 +426,8 @@ function openCreateRoomModal(){
   wrap.className="modal-backdrop";
   wrap.innerHTML=`<div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
     <div class="modal-head"><div><span class="eyebrow">НОВАЯ ГЛАВА</span><h2 class="modal-title" id="modal-title">ОТКРЫТЬ КОМНАТУ</h2></div><button class="btn btn-icon" data-close-modal aria-label="Закрыть">${cwIcon("close")}</button></div>
-    <div class="modal-poster"><img src="${archivePhoto(2)}" alt=""><div><span>Источник можно выбрать сейчас или уже внутри комнаты</span><h3>КАКОЙ КАДР ОТКРОЕТ ГЛАВУ?</h3><button class="btn btn-paper" type="button" id="pickMovie">${cwIcon("search")}Выбрать кино</button></div></div>
+    <div class="modal-poster"><img src="${archivePhoto(2)}" alt="" id="createRoomPoster"><div><span>Источник можно выбрать сейчас или уже внутри комнаты</span><h3 id="createRoomMovieTitle">КАКОЙ КАДР ОТКРОЕТ ГЛАВУ?</h3><button class="btn btn-paper" type="button" id="pickMovie">${cwIcon("search")}НАЙТИ В VK VIDEO</button></div></div>
+    <div id="createVkSearchWrap" hidden>${vkSearchPanelHtml("createVkSearch")}</div>
     <label class="field"><span>ИМЯ ГЛАВЫ</span><input id="newRoomName" placeholder="Название вашей главы" maxlength="60"></label>
     <div class="privacy-options">
       <button class="selected" type="button" data-privacy="private">${cwIcon("lock")}<span><strong>ЗАКРЫТАЯ ГЛАВА</strong>Вход только по коду или приглашению</span><i>${cwIcon("check",15)}</i></button>
@@ -370,12 +443,23 @@ function openCreateRoomModal(){
     wrap.querySelectorAll("[data-privacy]").forEach(x=>{x.classList.remove("selected");x.querySelector("i").innerHTML=""});
     b.classList.add("selected");b.querySelector("i").innerHTML=cwIcon("check",15);
   }));
-  wrap.querySelector("#pickMovie")?.addEventListener("click",()=>toast("Кино можно добавить сразу после входа в комнату"));
+  let selectedMediaUrl="";
+  const searchWrap=wrap.querySelector("#createVkSearchWrap");
+  bindVkSearch(wrap.querySelector("#createVkSearch"),{onPick:item=>{
+    selectedMediaUrl=item.player;
+    const poster=wrap.querySelector("#createRoomPoster");
+    if(item.thumbnail)poster.src=item.thumbnail;
+    wrap.querySelector("#createRoomMovieTitle").textContent=item.title;
+  }});
+  wrap.querySelector("#pickMovie")?.addEventListener("click",()=>{
+    searchWrap.hidden=!searchWrap.hidden;
+    if(!searchWrap.hidden)setTimeout(()=>searchWrap.querySelector("[data-vk-query]")?.focus(),30);
+  });
   wrap.querySelector("#createRoomSubmit").addEventListener("click",async()=>{
     const btn=wrap.querySelector("#createRoomSubmit");
     btn.disabled=true;btn.classList.add("is-loading");btn.innerHTML='<span class="button-loader"></span><span class="btn-label">Создаём…</span>';
     try{
-      const d=await api("/api/rooms",{method:"POST"});
+      const d=await api("/api/rooms",{method:"POST",body:{mediaUrl:selectedMediaUrl||null}});
       btn.classList.remove("is-loading");btn.classList.add("is-success");btn.innerHTML=`${cwIcon("check")}<span class="btn-label">Готово</span>`;
       setTimeout(()=>{close();navigate("/room/"+d.room.code)},420);
     }catch(e){btn.disabled=false;btn.classList.remove("is-loading");btn.innerHTML=`${cwIcon("play")}<span class="btn-label">ОТКРЫТЬ ГЛАВУ</span>`;wrap.querySelector("#createRoomErr").innerHTML=`<div class="error">${esc(e.message)}</div>`}
@@ -503,13 +587,25 @@ async function roomPage(code){
       <div class="watch-layout container roomlayout ${room.media?"has-media":"needs-media"}"><section class="player-column"><div class="player video-shell" id="videobox">${playerHtml(room.media)}<div class="movie-label"><span>${room.media?"ИСТОЧНИК АКТИВИРОВАН":"КАДР ЕЩЁ НЕ ВЫБРАН"}</span><strong>${esc(label)}</strong></div><div class="player-overlay" id="playerOverlay"><button type="button" class="player-chat-toggle" id="playerChatToggle">${cwIcon("chat")}</button><button type="button" class="player-fullscreen" id="playerFullscreen">${cwIcon("expand")}</button><div class="overlay-chat" id="overlayChat"><div class="overlay-head"><b>РЕПЛИКИ</b><button id="overlayClose">×</button></div><div class="overlay-messages" id="overlayMessages"></div><form id="overlayForm"><input id="overlayInput" maxlength="500" placeholder="Написать сообщение…"><button type="submit">${cwIcon("send",17)}</button></form></div></div></div>
       <div class="player-controls"><button class="btn btn-icon" id="seekBack" aria-label="Назад на 10 секунд">${cwIcon("back")}</button><button class="btn btn-icon" id="playerToggle" aria-label="Воспроизвести">${cwIcon(room.playing?"pause":"play")}</button><span class="player-sync-note">СИНХРОН</span><button class="btn btn-icon" aria-label="Громкость">${cwIcon("sound")}</button><button class="btn btn-icon" id="playerFullscreenBottom" aria-label="На весь экран">${cwIcon("expand")}</button></div>
       <div class="under-player"><div><h3>${esc(label)}</h3><span>Комната ${esc(room.code)}</span></div><div class="reaction-row"><button class="btn btn-secondary" data-room-reaction="♥">${cwIcon("heart")}</button><button class="btn btn-secondary" data-room-reaction="ХА">${cwIcon("smile")}</button><button class="btn btn-primary" id="movieSelectorToggle">${cwIcon("film")}<span class="btn-label">СМЕНИТЬ КИНО</span></button></div></div>
-      <div class="movie-selector" id="movieSelector" hidden><div class="selector-head"><div><span class="eyebrow">НОВЫЙ КАДР</span><h3>СМЕНИТЬ ИСТОЧНИК</h3></div><button class="btn btn-icon" id="movieSelectorClose">${cwIcon("close")}</button></div><p class="selector-note">Вставьте ссылку YouTube, VK Video или прямую ссылку на видео. Изменение СИНХРОНизируется для комнаты.</p><form id="mediaform" class="mediaform"><input id="mediaurl" placeholder="YouTube / VK / прямая ссылка" required><button class="btn btn-primary">${cwIcon("play")}<span class="btn-label">ЗАПУСТИТЬ КАДР</span></button></form><div id="mediaerr"></div></div>
+      <div class="movie-selector" id="movieSelector" hidden><div class="selector-head"><div><span class="eyebrow">НОВЫЙ КАДР</span><h3>НАЙТИ ИЛИ ВСТАВИТЬ</h3></div><button class="btn btn-icon" id="movieSelectorClose">${cwIcon("close")}</button></div>
+      ${vkSearchPanelHtml("roomVkSearch")}
+      <div class="selector-divider"><span>или ссылка вручную</span></div>
+      <p class="selector-note">YouTube, VK Video или прямая ссылка на видео. Изменение синхронизируется для комнаты.</p><form id="mediaform" class="mediaform"><input id="mediaurl" placeholder="YouTube / VK / прямая ссылка" required><button class="btn btn-primary">${cwIcon("play")}<span class="btn-label">ЗАПУСТИТЬ КАДР</span></button></form><div id="mediaerr"></div></div>
       </section>
       <aside class="chat-panel"><div class="chat-head"><div><h3>РЕПЛИКИ</h3><span>${people.length} в комнате</span></div><div class="chat-head-actions"><button class="btn btn-ghost" id="invite">ПОЗВАТЬ</button><button class="btn btn-icon" id="peopleToggle" aria-label="Участники">${cwIcon("users")}</button></div></div>
       <div class="participants-popover" id="peoplePopover" hidden><div id="people">${peopleHtml(people)}</div>${room.ownerId===me.id?`<button id="deleteRoom" class="btn btn-ghost danger-text">Удалить комнату</button>`:""}<button id="creatorBtn" class="btn btn-ghost">Создатель</button></div>
       <div class="messages" id="messages"></div><div class="reaction-picker"><button type="button" data-chat-reaction="♥">♥</button><button type="button" data-chat-reaction="😂">😂</button><button type="button" data-chat-reaction="🔥">🔥</button><button type="button" data-chat-reaction="😮">😮</button></div><form id="chatform" class="chat-input"><input id="chatinput" maxlength="500" placeholder="Написать сообщение..."><button class="btn btn-icon" type="submit" aria-label="Отправить">${cwIcon("send")}</button></form></aside></div>
     </main>`,{bottom:false});
     bindRoom(code);
+    bindVkSearch($("#roomVkSearch"),{onPick:async item=>{
+      try{
+        const d=await api(`/api/rooms/${code}/media`,{method:"POST",body:{url:item.player}});
+        room=d.room;mountMedia();
+        toast("VK Video выбран");
+        $("#movieSelector").hidden=true;
+        $("#movieSelectorToggle").classList.remove("active");
+      }catch(err){$("#mediaerr").innerHTML=`<div class="error">${esc(err.message)}</div>`}
+    }});
     $("#peopleToggle").onclick=()=>{$("#peoplePopover").hidden=!$("#peoplePopover").hidden};
     const selector=$("#movieSelector"),toggle=$("#movieSelectorToggle");
     toggle.onclick=()=>{selector.hidden=!selector.hidden;toggle.classList.toggle("active",!selector.hidden)};
