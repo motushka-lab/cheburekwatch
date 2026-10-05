@@ -104,16 +104,42 @@ function prefixLabel(user=me){
 }
 function figmaImages(){
   return {
-    hero:"https://images.unsplash.com/photo-1477346611705-65d1883cee1e?auto=format&fit=crop&w=1800&q=88",
-    cinema:"https://images.unsplash.com/photo-1485095329183-d0797cdc5676?auto=format&fit=crop&w=1600&q=85",
-    redEye:"https://images.unsplash.com/photo-1546803073-23568b8c98e6?auto=format&fit=crop&w=900&q=85",
-    forest:"https://images.unsplash.com/photo-1475070929565-c985b496cb9f?auto=format&fit=crop&w=900&q=85",
-    portrait:"https://images.unsplash.com/photo-1637961239771-6578d3eb8d8e?auto=format&fit=crop&w=900&q=85",
-    mountain:"https://images.unsplash.com/photo-1670702146868-bc7797ef47a5?auto=format&fit=crop&w=900&q=85",
-    road:"https://images.unsplash.com/photo-1729882417531-eead4fe0bb2b?auto=format&fit=crop&w=900&q=85",
-    lake:"https://images.unsplash.com/photo-1661124280301-ca0e33ceb438?auto=format&fit=crop&w=900&q=85",
-    chairs:"https://images.unsplash.com/photo-1595769816263-9b910be24d5f?auto=format&fit=crop&w=900&q=85"
+    hero:"/media/hero-kitty.jpg",
+    cinema:"/media/meme-machine.jpg",
+    redEye:"/media/meme-kitty.jpg",
+    forest:"/media/meme-bees.jpg",
+    portrait:"/media/meme-couple.jpg",
+    mountain:"/media/meme-ghost.jpg",
+    road:"/media/meme-mafanya.jpg",
+    lake:"/media/meme-hug.jpg",
+    chairs:"/media/meme-couple.jpg"
   };
+}
+
+
+const EASTER_PHOTOS=[
+  {src:"/media/hero-kitty.jpg",label:"кадр 01"},
+  {src:"/media/meme-couple.jpg",label:"кадр 02"},
+  {src:"/media/meme-kitty.jpg",label:"кадр 03"},
+  {src:"/media/meme-bees.jpg",label:"кадр 04"},
+  {src:"/media/meme-machine.jpg",label:"кадр 05"},
+  {src:"/media/meme-mafanya.jpg",label:"кадр 06"},
+  {src:"/media/meme-ghost.jpg",label:"кадр 07"},
+  {src:"/media/meme-hug.jpg",label:"кадр 08"},
+  {src:"/media/meme-leg.jpg",label:"кадр 09"},
+  {src:"/media/meme-legs.jpg",label:"кадр 10"}
+];
+function photoEasterHtml(index,className=""){
+  const p=EASTER_PHOTOS[index%EASTER_PHOTOS.length];
+  return `<figure class="photo-easter ${className}" aria-hidden="true"><img src="${p.src}" alt="" loading="lazy"><figcaption>${p.label}</figcaption></figure>`;
+}
+function photoGradientBandHtml(){
+  return `<section class="photo-gradient-band" aria-label="Фотоархив CheburekWatch">
+    <div class="photo-gradient-copy"><span>CHEBUREK ARCHIVE</span><b>свои кадры вместо стоков</b></div>
+    <div class="photo-gradient-track">
+      ${EASTER_PHOTOS.slice(0,6).map((p,i)=>`<figure style="--i:${i}"><img src="${p.src}" alt="" loading="lazy"><span>${String(i+1).padStart(2,"0")}</span></figure>`).join("")}
+    </div>
+  </section>`;
 }
 
 function figmaMovies(){ return []; }
@@ -268,32 +294,34 @@ function openAccountModal(){
 async function landingPage(){
   const i=figmaImages();
   let realRooms=[];
-  if(me){
-    try{realRooms=(await api("/api/my-rooms")).rooms||[]}catch{}
-  }
+  if(me){try{realRooms=(await api("/api/my-rooms")).rooms||[]}catch{}}
   const roomSection=me
-    ? `<section class="section container"><div class="section-head"><div><span class="eyebrow">Ваши комнаты</span><h2>Продолжить просмотр</h2></div><a class="btn btn-ghost" href="/rooms" data-nav>Все комнаты ${cwIcon("arrow")}</a></div>
-       <div class="rooms-grid featured">${realRooms.length?realRooms.slice(0,4).map((r,n)=>roomCardHtml(r,n)).join(""):emptyStateHtml()}</div></section>`
-    : `<section class="section container"><div class="section-head"><div><span class="eyebrow">Совместный просмотр</span><h2>Здесь будут ваши комнаты</h2></div></div>
-       <div class="empty-state"><div class="empty-projector"><i></i><span></span></div><span class="eyebrow">Пока пусто</span><h3>Никаких выдуманных трансляций</h3><p>После входа здесь появятся только настоящие комнаты и реальные участники.</p><a class="btn btn-primary" href="/login" data-nav>Войти</a></div></section>`;
+    ? `<section class="section container room-preview-section"><div class="section-head"><div><span class="eyebrow">Ваши комнаты</span><h2>Продолжить просмотр</h2></div><a class="btn btn-ghost" href="/rooms" data-nav>Все комнаты ${cwIcon("arrow")}</a></div>
+       <div class="rooms-grid featured">${realRooms.length?realRooms.slice(0,4).map((r,n)=>roomCardHtml(r,n)).join(""):emptyStateHtml()}</div>${photoEasterHtml(6,"easter-room-preview")}</section>`
+    : `<section class="section container room-preview-section"><div class="section-head"><div><span class="eyebrow">Совместный просмотр</span><h2>Здесь будут ваши комнаты</h2></div></div>
+       <div class="empty-state"><div class="empty-projector"><i></i><span></span></div><span class="eyebrow">Пока пусто</span><h3>Никаких выдуманных трансляций</h3><p>После входа здесь появятся только настоящие комнаты и реальные участники.</p><a class="btn btn-primary" href="/login" data-nav>Войти</a></div>${photoEasterHtml(6,"easter-room-preview")}</section>`;
   shell(`<main>
-    <section class="hero"><img class="hero-image" src="${i.hero}" alt="Горный пейзаж в сумерках"><div class="hero-overlay"></div>
+    <section class="hero local-photo-hero"><img class="hero-image" src="${i.hero}" alt=""><div class="hero-overlay"></div>
+      <div class="hero-photo-stack" aria-hidden="true"><span style="background-image:url('/media/meme-bees.jpg')"></span><span style="background-image:url('/media/meme-machine.jpg')"></span><span style="background-image:url('/media/meme-couple.jpg')"></span></div>
       <div class="container hero-content reveal"><span class="hero-kicker"><i></i> Вечер начинается здесь</span><h1>Кино ближе,<br><em>когда вы вместе</em></h1>
       <p>Смотрите любимые фильмы синхронно. Обсуждайте, смейтесь и проживайте каждую сцену — даже если между вами тысячи километров.</p>
       <div class="hero-actions"><button class="btn btn-primary" data-create>${cwIcon("play")}<span class="btn-label">Создать комнату</span></button><a class="btn btn-secondary" href="${me?"/rooms":"/login"}" data-nav>Войти по коду ${cwIcon("arrow")}</a></div></div>
-      <div class="hero-credit">Фото: John Towner / Unsplash</div>
+      ${photoEasterHtml(2,"easter-hero")}
     </section>
+    ${photoGradientBandHtml()}
     ${roomSection}
-    <section class="manifesto"><div class="container manifesto-grid"><div class="manifesto-image"><img src="${i.cinema}" alt="Зрители в кинозале"><span>ОДИН ЭКРАН<br>НА ВСЕХ</span></div>
+    <section class="manifesto"><div class="container manifesto-grid"><div class="manifesto-image"><img src="${i.cinema}" alt=""><span>ОДИН ЭКРАН<br>НА ВСЕХ</span>${photoEasterHtml(8,"easter-manifesto")}</div>
       <div class="manifesto-copy"><span class="eyebrow">Без расстояний</span><h2>Как в кинотеатре.<br>Только у каждого дома.</h2>
       <div class="feature-list"><div><b>01</b><span><strong>Кадр в кадр</strong>Пауза, перемотка и продолжение синхронны для всех.</span></div><div><b>02</b><span><strong>Живой разговор</strong>Чат и быстрые реакции рядом, но не мешают просмотру.</span></div><div><b>03</b><span><strong>Только свои</strong>Входите в комнату по коду и смотрите со своей компанией.</span></div></div></div></div></section>
     <section class="club-notes container"><div class="club-note-copy"><span class="eyebrow">Ваш профиль</span><h2>Смотрите вместе.<br>Прокачивайте профиль.</h2><p>Уровень, минуты просмотра и достижения считаются по реальной активности в комнатах.</p></div>
-      <div class="club-collage"><img src="${i.redEye}" alt=""><img src="${i.forest}" alt=""><img src="${i.road}" alt=""><span class="ticket">CHEBUREK<br><small>WATCH PARTY</small></span></div></section>
+      <div class="club-collage"><img src="${i.redEye}" alt=""><img src="${i.forest}" alt=""><img src="${i.road}" alt=""><span class="ticket">CHEBUREK<br><small>WATCH PARTY</small></span>${photoEasterHtml(9,"easter-club")}</div></section>
   </main>`);
   document.querySelectorAll("[data-open]").forEach(b=>b.addEventListener("click",async()=>{b.disabled=true;try{await api(`/api/rooms/${b.dataset.open}/join`,{method:"POST"});navigate("/room/"+b.dataset.open)}catch(e){toast(e.message);b.disabled=false}}));
 }
 
 function shell(content,opts={}){
+  const p=location.pathname;
+  document.body.dataset.cwPage=p.startsWith("/room/")?"watch":p==="/profile"?"profile":p==="/rooms"?"rooms":p==="/login"||p==="/register"?"auth":"home";
   const showHeader=opts.header!==false;
   const showBottom=opts.bottom!==false && location.pathname!=="/login" && location.pathname!=="/register" && !location.pathname.startsWith("/room/");
   app.innerHTML=`<div class="app"><div class="page-stage">${showHeader?headerHtml():""}${content}${showBottom?bottomNavHtml():""}</div><div class="page-curtain"></div></div>`;
@@ -305,7 +333,7 @@ function shell(content,opts={}){
 function mountCinemaIntro(){}
 function authPage(mode){
   const i=figmaImages();
-  shell(`<main class="auth-page"><div class="auth-visual"><img src="${i.redEye}" alt="Кинематографичный портрет в красном свете"><div class="auth-quote"><span>СЕАНС № 1948</span><h2>Истории становятся<br>настоящими, когда<br>ими делятся.</h2></div></div>
+  shell(`<main class="auth-page"><div class="auth-visual"><img src="${i.redEye}" alt="Кинематографичный портрет в красном свете"><div class="auth-quote"><span>СЕАНС № 1948</span><h2>Истории становятся<br>настоящими, когда<br>ими делятся.</h2></div>${photoEasterHtml(1,"easter-auth")}</div>
     <div class="auth-form-wrap"><div class="auth-mobile-logo">${logoHtml()}</div><a class="btn btn-ghost auth-back" href="/" data-nav>${cwIcon("back")}На главную</a>
       <form class="auth-form" id="authform"><span class="eyebrow">${mode==="login"?"С возвращением":"Добро пожаловать"}</span><h1>${mode==="login"?"Продолжим смотреть?":"Займите место"}</h1><p>${mode==="login"?"Войдите в аккаунт или используйте код комнаты.":"Создайте профиль для совместных кинопросмотров."}</p>
       <div class="auth-tabs"><a class="btn btn-ghost ${mode==="login"?"active":""}" href="/login" data-nav>Вход</a><a class="btn btn-ghost ${mode==="register"?"active":""}" href="/register" data-nav>Регистрация</a></div>
@@ -323,7 +351,7 @@ async function roomsPage(){
   shell(`<main class="page container"><div class="browse-top reveal"><div><span class="eyebrow">Живые комнаты</span><h1>Выбирайте, что смотреть</h1><p>Заходите без стука — здесь всегда оставлено место на диване.</p></div><button class="btn btn-primary" data-create>${cwIcon("plus")}<span class="btn-label">Новая комната</span></button></div>
     <div class="filter-row"><div class="tabs"><button class="btn btn-ghost active" data-filter="all">Все</button><button class="btn btn-ghost" data-filter="friends">Друзья смотрят</button><button class="btn btn-ghost" data-filter="open">Открытые</button><button class="btn btn-ghost" data-filter="classic">Классика</button></div>
       <label class="search-box">${cwIcon("search")}<input id="roomSearch" placeholder="Найти комнату, фильм или код"></label></div>
-    <div id="roomsGrid" class="rooms-grid browse-grid">${d.rooms.length?d.rooms.map((r,n)=>roomCardHtml(r,n)).join(""):emptyStateHtml()}</div><div id="filterEmpty" hidden>${emptyStateHtml()}</div>
+    <div id="roomsGrid" class="rooms-grid browse-grid">${d.rooms.length?d.rooms.map((r,n)=>roomCardHtml(r,n)).join(""):emptyStateHtml()}</div><div id="filterEmpty" hidden>${emptyStateHtml()}</div><aside class="rooms-photo-easter">${photoEasterHtml(3,"peek-a")}${photoEasterHtml(4,"peek-b")}${photoEasterHtml(5,"peek-c")}</aside>
   </main>`);
   document.querySelectorAll("[data-open]").forEach(b=>b.addEventListener("click",async()=>{b.disabled=true;try{await api(`/api/rooms/${b.dataset.open}/join`,{method:"POST"});navigate("/room/"+b.dataset.open)}catch(e){toast(e.message);b.disabled=false}}));
   const search=$("#roomSearch");
@@ -339,7 +367,7 @@ async function profilePage(){
   const firstAchievements=d.user.availableAchievements.slice(0,3);
   shell(`<main class="profile-page"><section class="profile-hero"><img src="${i.chairs}" alt=""><div class="profile-shade"></div><div class="container profile-info">${avatarHtml(me.nickname,"lg")}<div class="profile-name"><span class="eyebrow">Профиль зрителя</span><h1>${esc(me.nickname)}</h1><p>@${esc(me.nickname.toLowerCase().replace(/\s+/g,""))} · ${esc(me.secretPrefix||me.prefix||"зритель")}</p></div><button class="btn btn-secondary" id="profileSettings">Настроить профиль</button></div></section>
     <div class="container profile-content"><section class="level-card"><div class="level-number">${String(me.level).padStart(2,"0")}</div><div class="level-copy"><span>УРОВЕНЬ</span><h3>${esc(me.secretPrefix||me.prefix||"Зритель")}</h3><div class="progress"><i style="width:${Math.max(0,Math.min(100,Number(me.progress||0)))}%"></i></div><p>${next} мин. до следующего уровня</p></div><div class="stats"><div><strong>${me.watchMinutes||0}</strong><span>Минут</span></div><div><strong>${hours}ч ${mins}м</strong><span>Просмотра</span></div><div><strong>${unlocked}</strong><span>Наград</span></div></div></section>
-    <section class="profile-section"><div class="section-head"><div><span class="eyebrow">Коллекция</span><h2>Знаки отличия</h2></div></div><div class="achievements">${firstAchievements.length?firstAchievements.map((a,n)=>`<div><b>${["01","02","03"][n]||"•"}</b><span><strong>${esc(a.title)}</strong>${esc(a.desc)}</span></div>`).join(""):`<div><b>○</b><span><strong>Пока пусто</strong>Достижения появятся после реальных просмотров</span></div>`}</div></section>
+    <section class="profile-section"><div class="section-head"><div><span class="eyebrow">Коллекция</span><h2>Знаки отличия</h2></div></div><div class="achievements">${firstAchievements.length?firstAchievements.map((a,n)=>`<div><b>${["01","02","03"][n]||"•"}</b><span><strong>${esc(a.title)}</strong>${esc(a.desc)}</span></div>`).join(""):`<div><b>○</b><span><strong>Пока пусто</strong>Достижения появятся после реальных просмотров</span></div>`}</div></section><aside class="profile-photo-easters">${photoEasterHtml(0,"profile-peek-a")}${photoEasterHtml(5,"profile-peek-b")}${photoEasterHtml(7,"profile-peek-c")}</aside>
     <section class="profile-section profile-real-note"><div class="empty-state"><div class="empty-projector"><i></i><span></span></div><span class="eyebrow">История просмотров</span><h3>Здесь появятся только реальные данные</h3><p>Сейчас сервер не хранит отдельную историю фильмов и избранное, поэтому мы не показываем выдуманные фильмы, комнаты или проценты просмотра.</p></div></section>
     </div></main>`);
   $("#profileSettings").onclick=openAccountModal;
@@ -356,7 +384,7 @@ async function roomPage(code){
     const people=room.users||[],label=room.media?(room.media.type==="youtube"?"YouTube":room.media.type==="vk"?"VK Video":"Видео"):"Фильм не выбран";
     shell(`<main class="watch-page"><div class="watch-header container"><a class="btn btn-ghost" href="/rooms" data-nav>${cwIcon("back")}<span>Комнаты</span></a><div class="room-title"><span class="live-dot"></span><div><h3>Комната ${esc(room.code)}</h3><span>${people.length} ${people.length===1?"участник":"участников"} сейчас</span></div></div><div class="participant-stack">${people.slice(0,3).map(u=>avatarHtml(u.nickname)).join("")}${people.length>3?`<span>+${people.length-3}</span>`:""}</div></div>
       <div class="watch-layout container roomlayout ${room.media?"has-media":"needs-media"}"><section class="player-column"><div class="player video-shell" id="videobox">${playerHtml(room.media)}<div class="movie-label"><span>${room.media?"ИСТОЧНИК В КОМНАТЕ":"КИНО НЕ ВЫБРАНО"}</span><strong>${esc(label)}</strong></div><div class="player-overlay" id="playerOverlay"><button type="button" class="player-chat-toggle" id="playerChatToggle">${cwIcon("chat")}</button><button type="button" class="player-fullscreen" id="playerFullscreen">${cwIcon("expand")}</button><div class="overlay-chat" id="overlayChat"><div class="overlay-head"><b>Чат</b><button id="overlayClose">×</button></div><div class="overlay-messages" id="overlayMessages"></div><form id="overlayForm"><input id="overlayInput" maxlength="500" placeholder="Написать сообщение…"><button type="submit">${cwIcon("send",17)}</button></form></div></div></div>
-      <div class="player-controls"><button class="btn btn-icon" id="seekBack" aria-label="Назад на 10 секунд">${cwIcon("back")}</button><button class="btn btn-icon" id="playerToggle" aria-label="Воспроизвести">${cwIcon(room.playing?"pause":"play")}</button><div class="timeline" id="fakeTimeline"><i></i><span></span></div><span class="time" id="playerTime">0:00</span><button class="btn btn-icon" aria-label="Громкость">${cwIcon("sound")}</button><button class="btn btn-icon" id="playerFullscreenBottom" aria-label="На весь экран">${cwIcon("expand")}</button></div>
+      <div class="player-controls"><button class="btn btn-icon" id="seekBack" aria-label="Назад на 10 секунд">${cwIcon("back")}</button><button class="btn btn-icon" id="playerToggle" aria-label="Воспроизвести">${cwIcon(room.playing?"pause":"play")}</button><span class="player-sync-note">синхрон</span><button class="btn btn-icon" aria-label="Громкость">${cwIcon("sound")}</button><button class="btn btn-icon" id="playerFullscreenBottom" aria-label="На весь экран">${cwIcon("expand")}</button></div>
       <div class="under-player"><div><h3>${esc(label)}</h3><span>Комната ${esc(room.code)}</span></div><div class="reaction-row"><button class="btn btn-secondary" data-room-reaction="♥">${cwIcon("heart")}</button><button class="btn btn-secondary" data-room-reaction="ХА">${cwIcon("smile")}</button><button class="btn btn-primary" id="movieSelectorToggle">${cwIcon("film")}<span class="btn-label">Сменить кино</span></button></div></div>
       <div class="movie-selector" id="movieSelector" hidden><div class="selector-head"><div><span class="eyebrow">Источник</span><h3>Добавить или сменить кино</h3></div><button class="btn btn-icon" id="movieSelectorClose">${cwIcon("close")}</button></div><p class="selector-note">Вставьте ссылку YouTube, VK Video или прямую ссылку на видео. Изменение синхронизируется для комнаты.</p><form id="mediaform" class="mediaform"><input id="mediaurl" placeholder="YouTube / VK / прямая ссылка" required><button class="btn btn-primary">${cwIcon("play")}<span class="btn-label">Поставить кино</span></button></form><div id="mediaerr"></div></div>
       </section>
@@ -505,8 +533,8 @@ function mountMedia(){
   const label=current?(current.type==="youtube"?"YouTube":current.type==="vk"?"VK Video":"Видео"):"Фильм не выбран";
   box.innerHTML=playerHtml(current)+`<div class="movie-label"><span>СЕЙЧАС СМОТРИМ</span><strong>${esc(label)}</strong></div><div class="player-overlay" id="playerOverlay"><button type="button" class="player-chat-toggle" id="playerChatToggle">${cwIcon("chat")}</button><button type="button" class="player-fullscreen" id="playerFullscreen">${cwIcon("expand")}</button><div class="overlay-chat" id="overlayChat"><div class="overlay-head"><b>Чат</b><button id="overlayClose">×</button></div><div class="overlay-messages" id="overlayMessages"></div><form id="overlayForm"><input id="overlayInput" maxlength="500" placeholder="Написать сообщение…"><button type="submit">${cwIcon("send",17)}</button></form></div></div>`;
   setupPlayerOverlay();
-  updatePlayerProgress();
-  if(!current){clearInterval(window.__cwProgressWatch);return;}
+  
+  if(!current){return;}
   if(current.type==="youtube"){
     window.onYouTubeIframeAPIReady=()=>{if(room?.media?.type==="youtube")initYT()};
     loadYouTubeAPI().then(ok=>{if(ok)initYT();else{const host=$("#yt");if(host)host.innerHTML='<div class="player-error"><b>YouTube сейчас недоступен</b><small>Попробуйте VK Video или прямую ссылку.</small></div>'}});
@@ -519,8 +547,8 @@ function mountMedia(){
     localVideo.addEventListener("play",()=>{if(!suppress&&Date.now()>remoteApplyUntil)sendState(true,localVideo.currentTime,"play")});
     localVideo.addEventListener("pause",()=>{if(!suppress&&Date.now()>remoteApplyUntil)sendState(false,localVideo.currentTime,"pause")});
     localVideo.addEventListener("seeked",()=>{if(!suppress&&Date.now()>remoteApplyUntil)sendState(!localVideo.paused,localVideo.currentTime,"seek")});
-    localVideo.addEventListener("loadedmetadata",()=>{applyRemoteState(room);startPlayerProgressWatch()});
-    localVideo.addEventListener("timeupdate",updatePlayerProgress);
+    localVideo.addEventListener("loadedmetadata",()=>{applyRemoteState(room)});
+    
   }
 }
 function setupPlayerOverlay(){
@@ -539,7 +567,7 @@ function initYT(){
     videoId:room.media.videoId,width:"100%",height:"100%",
     playerVars:{playsinline:1,rel:0,enablejsapi:1,origin:location.origin},
     events:{
-      onReady:()=>{applyRemoteState(room);startYTSeekWatch();startPlayerProgressWatch();},
+      onReady:()=>{applyRemoteState(room);startYTSeekWatch();},
       onStateChange:e=>{
         if(suppress || Date.now()<remoteApplyUntil)return;
         if(e.data===YT.PlayerState.PLAYING)sendState(true,player.getCurrentTime(),"play");
@@ -582,39 +610,11 @@ function initVK(){
         }
         lastVKPosition=p;
       });
-      applyRemoteState(room);startPlayerProgressWatch();
+      applyRemoteState(room);
     }catch(e){ console.warn("VK player API init failed",e); }
   };
   if(window.VK?.VideoPlayer) attach();
   else iframe.addEventListener("load",attach,{once:true});
-}
-
-function getDuration(){
-  try{
-    if(player?.getDuration)return Number(player.getDuration())||0;
-    if(vkPlayer?.getDuration)return Number(vkPlayer.getDuration())||0;
-    if(localVideo && Number.isFinite(localVideo.duration))return Number(localVideo.duration)||0;
-  }catch{}
-  return 0;
-}
-function formatPlayerTime(seconds){
-  seconds=Math.max(0,Math.floor(Number(seconds)||0));
-  const h=Math.floor(seconds/3600),m=Math.floor((seconds%3600)/60),sec=seconds%60;
-  return h?String(h)+":"+String(m).padStart(2,"0")+":"+String(sec).padStart(2,"0"):String(m)+":"+String(sec).padStart(2,"0");
-}
-function updatePlayerProgress(){
-  const timeline=$("#fakeTimeline"),time=$("#playerTime");
-  if(!timeline)return;
-  const pos=Math.max(0,Number(getPosition())||0);
-  const dur=Math.max(0,Number(getDuration())||0);
-  const pct=dur>0?Math.max(0,Math.min(100,(pos/dur)*100)):0;
-  timeline.style.setProperty("--cw-progress",pct.toFixed(3)+"%");
-  if(time)time.textContent=dur>0?`${formatPlayerTime(pos)} / ${formatPlayerTime(dur)}`:(pos>0?formatPlayerTime(pos):"0:00");
-}
-function startPlayerProgressWatch(){
-  clearInterval(window.__cwProgressWatch);
-  updatePlayerProgress();
-  window.__cwProgressWatch=setInterval(updatePlayerProgress,500);
 }
 
 async function sendState(playing,position,action){
@@ -664,13 +664,13 @@ function applyRemoteState(st){
   }catch{}
   lastYTPosition=target;
   lastVKPosition=target;
-  updatePlayerProgress();
+  
   setTimeout(()=>{suppress=false;},1250);
 }
 
 async function render(){
   if(eventSource){eventSource.close();eventSource=null}
-  clearInterval(window.__cwHeartbeat);clearInterval(window.__cwMessageRefresh);clearInterval(window.__ytSeekWatch);clearInterval(window.__cwProgressWatch);
+  clearInterval(window.__cwHeartbeat);clearInterval(window.__cwMessageRefresh);clearInterval(window.__ytSeekWatch);
   const path=location.pathname;
   if(path==="/"){await landingPage();return}
   if(path==="/login"){authPage("login");return}
