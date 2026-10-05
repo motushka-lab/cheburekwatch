@@ -1163,3 +1163,27 @@ h1,h2,h3,.modal-title,.profile-name h1,.room-title h3,.motion-card b,.club-note-
   }
   .hero-actions{margin-top:28px!important}
 }
+
+/* v35 — robust hero autoplay + 3s/end cinematic loop */
+.archive-hero{isolation:isolate}
+.archive-hero.hero-loop-pulse:after{
+  content:"";
+  position:absolute;
+  z-index:3;
+  inset:0;
+  pointer-events:none;
+  background:radial-gradient(circle at 66% 48%,rgba(160,101,232,.12),transparent 34%);
+  animation:heroLoopPulse .18s ease-out both;
+}
+@keyframes heroLoopPulse{
+  from{opacity:.7}
+  to{opacity:0}
+}
+@media(max-width:700px){
+  .archive-hero .hero-content{
+    transform:translateY(-42px)!important;
+  }
+}
+@media(prefers-reduced-motion:reduce){
+  .archive-hero.hero-loop-pulse:after{display:none}
+}
