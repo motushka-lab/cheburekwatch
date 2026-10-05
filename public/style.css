@@ -820,3 +820,175 @@ h1,h2,h3,.modal-title,.profile-name h1,.room-title h3,.motion-card b,.club-note-
 @media(prefers-reduced-motion:reduce){
   .room-card,.motion-card,.hero-content h1,.archive-collage,.warning-art{transform:none!important}
 }
+
+/* v32 — corrected desktop hero, square video frames, scrollable six-frame archive, mobile fit */
+@media(min-width:901px){
+  .archive-hero{min-height:760px;background:radial-gradient(circle at 73% 45%,#211426 0,#100c16 34%,#08070c 70%)}
+  .archive-hero .hero-main-video-desktop{
+    inset:auto 3.5vw auto auto!important;
+    top:50%!important;
+    width:min(61vw,980px)!important;
+    height:auto!important;
+    aspect-ratio:16/9;
+    transform:translateY(-44%);
+    object-fit:contain!important;
+    object-position:center!important;
+    filter:none!important;
+    border:2px solid rgba(239,197,111,.42);
+    box-shadow:0 0 0 7px rgba(10,8,14,.66),18px 22px 0 rgba(83,48,104,.22),0 34px 80px rgba(0,0,0,.48);
+    background:#050407;
+  }
+  .archive-hero .hero-overlay{
+    background:
+      linear-gradient(90deg,rgba(7,6,11,.98) 0%,rgba(7,6,11,.88) 34%,rgba(7,6,11,.46) 51%,rgba(7,6,11,.08) 73%,rgba(7,6,11,.12) 100%),
+      linear-gradient(0deg,rgba(8,7,12,.86) 0%,transparent 28%)!important;
+  }
+  .hero-content{max-width:1280px}
+  .hero-content h1{max-width:760px!important;font-size:clamp(54px,6.2vw,98px)!important}
+  .hero-content>p{max-width:530px!important}
+  .hero-archive-stack{right:1.5vw;bottom:2%;width:min(18vw,260px);height:31%;opacity:.48}
+}
+
+.archive-carousel{
+  position:relative;
+  padding:30px 0 36px;
+  overflow:hidden;
+  border-block:1px solid var(--line);
+  background:linear-gradient(105deg,#09070d,#23122d 31%,#482634 58%,#49371c 78%,#08070d);
+}
+.archive-carousel-head{display:flex;align-items:end;justify-content:space-between;gap:24px;margin-bottom:22px}
+.archive-carousel .new-photo-gradient-copy{position:static!important;display:grid;gap:5px}
+.archive-carousel .new-photo-gradient-copy b{max-width:760px;font-size:21px!important;line-height:1.02}
+.archive-carousel-ui{display:flex;align-items:center;gap:14px;flex:none}
+.archive-carousel-count{font-family:var(--manga-head);font-style:italic;color:var(--muted);font-size:11px;letter-spacing:.12em}
+.archive-carousel-count b{color:var(--manga-gold);font-size:20px}
+.archive-carousel-controls{display:flex;gap:7px}
+.archive-carousel-controls .btn-icon{width:38px;height:38px;min-height:38px;padding:0!important;clip-path:none!important;border:1px solid #574361;background:#100d15}
+.archive-carousel-viewport{
+  overflow-x:auto;
+  overflow-y:hidden;
+  scroll-snap-type:x mandatory;
+  scroll-behavior:smooth;
+  overscroll-behavior-inline:contain;
+  scrollbar-width:none;
+  padding:4px max(24px,calc((100vw - 1240px)/2)) 18px;
+  outline:none;
+}
+.archive-carousel-viewport::-webkit-scrollbar{display:none}
+.archive-carousel-track{display:flex;gap:14px;width:max-content}
+.archive-slide{
+  position:relative;
+  flex:0 0 clamp(260px,31vw,430px);
+  aspect-ratio:4/3;
+  margin:0;
+  overflow:hidden;
+  scroll-snap-align:center;
+  border:2px solid rgba(255,255,255,.15);
+  background:#0b0910;
+  box-shadow:9px 11px 0 rgba(0,0,0,.26);
+}
+.archive-slide:nth-child(even){aspect-ratio:1.25}
+.archive-slide img{width:100%;height:100%;object-fit:cover;filter:none!important;image-rendering:auto}
+.archive-slide:after{content:"";position:absolute;inset:0;background:linear-gradient(0deg,rgba(7,6,10,.52),transparent 48%);pointer-events:none}
+.archive-slide i{position:absolute;z-index:2;right:10px;bottom:8px;color:#fff;font-family:var(--manga-head);font-style:italic;font-size:13px;letter-spacing:.08em}
+
+/* The videos stay rectangular with square corners. Their layout can be asymmetrical, but the frames are no longer skewed. */
+.motion-grid{
+  width:min(960px,100%);
+  margin-inline:auto;
+  grid-template-columns:1.05fr .9fr 1fr!important;
+  gap:18px!important;
+  align-items:center;
+}
+.motion-card,.motion-card-1,.motion-card-2,.motion-card-3{
+  min-height:0!important;
+  height:auto;
+  aspect-ratio:9/16;
+  transform:none!important;
+  clip-path:none!important;
+  border-radius:0!important;
+  border:2px solid #4b3b55!important;
+  box-shadow:8px 9px 0 rgba(0,0,0,.28)!important;
+}
+.motion-card-1{max-height:330px;justify-self:end}
+.motion-card-2{max-height:365px;justify-self:center}
+.motion-card-3{max-height:310px;justify-self:start}
+.motion-card video{
+  width:100%;height:100%;min-height:0!important;
+  object-fit:cover;
+  filter:none!important;
+  transform:none!important;
+}
+.motion-card:hover video{filter:none!important;transform:none!important}
+.auth-visual-film{
+  width:min(31%,255px)!important;
+  top:9%!important;
+  right:6%!important;
+  transform:none!important;
+  clip-path:none!important;
+  border-radius:0!important;
+}
+.auth-visual-film video{filter:none!important}
+
+/* Keep real media clean instead of adding filters that make compression more visible. */
+.archive-collage img,.archive-manifesto .manifesto-image img,.room-card .poster>img,.warning-art img,.modal-poster img,.emptyvideo>img{
+  filter:none!important;
+  image-rendering:auto!important;
+}
+
+/* Mobile: smaller type/buttons and no horizontal UI overflow. */
+@media(max-width:700px){
+  .archive-hero{min-height:640px}
+  .hero-content{padding-inline:18px!important}
+  .hero-content h1{
+    max-width:94vw!important;
+    font-size:clamp(38px,12.5vw,56px)!important;
+    line-height:.88!important;
+    letter-spacing:-.055em!important;
+    text-shadow:3px 3px 0 #17101f,6px 6px 0 rgba(156,99,231,.15)!important;
+  }
+  .hero-content>p{max-width:92vw!important;font-size:9.5px!important;line-height:1.55!important;letter-spacing:.035em!important}
+  .hero-actions{display:grid!important;grid-template-columns:1fr;gap:7px!important;width:min(260px,82vw)}
+  .hero-actions .btn{width:100%;justify-content:center}
+  .hero-archive-stack{display:none!important}
+  .archive-hero-easter{display:none!important}
+
+  .btn{min-height:34px!important;padding:0 9px!important;font-size:8px!important;letter-spacing:.025em!important;clip-path:none!important;white-space:nowrap}
+  .btn .icon{width:14px!important;height:14px!important}
+  .header-inner{padding-inline:14px!important}
+  .header-actions{gap:5px!important}
+  .header-actions .btn-secondary{max-width:150px}
+  .header-actions .btn-label{overflow:hidden;text-overflow:ellipsis}
+  .bottom-nav .btn{font-size:8px!important}
+
+  .browse-top{align-items:flex-start!important;gap:16px}
+  .browse-top h1{font-size:34px!important;line-height:.95!important}
+  .section-head h2,.motion-head h2{font-size:32px!important;line-height:.94!important}
+  .auth-form h1{font-size:28px!important;line-height:.96!important}
+  .profile-name h1{font-size:38px!important}
+  .modal-title{font-size:23px!important}
+  .under-player h3{font-size:14px!important}
+  .movie-label strong{font-size:13px!important}
+  .reaction-row{gap:5px!important;flex-wrap:wrap}
+  .reaction-row .btn{padding-inline:7px!important}
+
+  .archive-carousel{padding:22px 0 26px}
+  .archive-carousel-head{align-items:center;margin-bottom:14px;padding-inline:18px!important}
+  .archive-carousel .new-photo-gradient-copy b{font-size:15px!important;max-width:65vw}
+  .archive-carousel .new-photo-gradient-copy span{font-size:7px!important}
+  .archive-carousel-ui{gap:7px}
+  .archive-carousel-count{font-size:8px}.archive-carousel-count b{font-size:15px}
+  .archive-carousel-controls .btn-icon{width:30px!important;height:30px!important;min-height:30px!important}
+  .archive-carousel-viewport{padding-inline:18px}
+  .archive-slide{flex-basis:78vw;max-width:340px}
+
+  .motion-archive{padding-block:70px!important}
+  .motion-grid{display:flex!important;overflow-x:auto;scroll-snap-type:x mandatory;width:auto!important;margin-inline:-18px!important;padding:0 18px 14px;gap:12px!important;scrollbar-width:none}
+  .motion-grid::-webkit-scrollbar{display:none}
+  .motion-card,.motion-card-1,.motion-card-2,.motion-card-3{flex:0 0 min(64vw,240px);max-height:none!important;aspect-ratio:9/16;scroll-snap-align:center}
+  .motion-card>div{left:10px;right:10px;bottom:10px}
+  .motion-card span{font-size:20px!important}.motion-card b{font-size:8px!important}
+
+  .auth-visual-film{display:none!important}
+  .warning-stamp{font-size:7px!important;right:10px!important}
+}
