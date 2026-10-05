@@ -446,7 +446,7 @@ app.get("/api/vk/search", requireAuth, async (req, res) => {
 });
 
 // Anime catalogue search via AniList. This returns metadata/official links, not pirated streams.
-app.get("/api/anime/search", requireAuth, async (req, res) => {
+app.get("/api/anime/search", async (req, res) => {
   const q = String(req.query.q || "").trim().slice(0, 120);
   if (q.length < 2) return res.status(400).json({ error: "Введите хотя бы 2 символа" });
 
