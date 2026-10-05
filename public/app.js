@@ -505,6 +505,7 @@ function vkSearchPanelHtml(id){
     <div class="media-source-tabs">
       <button class="active" type="button" data-media-tab="vk">VK VIDEO</button>
       <button type="button" data-media-tab="anime">АНИМЕ</button>
+      <button type="button" data-media-tab="library">БИБЛИОТЕКА</button>
     </div>
     <div data-media-pane="vk">
       <div class="vk-search-head"><div><span class="eyebrow">VK VIDEO</span><h3>ПОИСК БЕЗ API</h3></div><span class="vk-search-mark">VK</span></div>
@@ -529,6 +530,11 @@ function vkSearchPanelHtml(id){
       <div class="anime-search-status" data-anime-status>Поиск по каталогу AniList. Здесь можно выбрать тайтл и посмотреть доступные официальные источники.</div>
       <div class="anime-search-results" data-anime-results></div>
       <div class="anime-selected" data-anime-selected hidden></div>
+    </div>
+    <div data-media-pane="library" hidden>
+      <div class="library-head"><div><span class="eyebrow">TELEGRAM</span><h3>БИБЛИОТЕКА</h3></div><button class="btn btn-secondary" type="button" data-library-refresh>ОБНОВИТЬ</button></div>
+      <div class="library-status" data-library-status>Здесь появятся серии, добавленные через бота.</div>
+      <div class="library-list" data-library-list></div>
     </div>
   </section>`;
 }
@@ -645,12 +651,37 @@ function bindVkSearch(root,{onPick,onAnime}={}){
     }
   };
 
+  const libraryStatus=root.querySelector("[data-library-status]");
+  const libraryList=root.querySelector("[data-library-list]");
+  let libraryItems=[];
+  async function loadLibrary(){
+    libraryStatus.innerHTML='<span class="button-loader"></span> Загружаю библиотеку…';
+    try{
+      const data=await api("/api/anime/library",{method:"GET"});
+      libraryItems=Array.isArray(data.items)?data.items:[];
+      libraryStatus.textContent=libraryItems.length?"Нажмите на нужную серию.":"Библиотека пока пустая.";
+      libraryList.innerHTML=libraryItems.length?libraryItems.map((item,i)=>`<button class="library-item" type="button" data-library-pick="${i}"><span class="library-episode">${String(item.episode).padStart(2,"0")}</span><span class="library-copy"><strong>${esc(item.title)}</strong><small>${item.kind==="video"?"Видео из Telegram":"Добавленная ссылка"}</small></span><span class="library-play">${cwIcon("play",16)}</span></button>`).join(""):'<div class="library-empty">Отправьте видео боту, затем нажмите «Обновить».</div>';
+      libraryList.querySelectorAll("[data-library-pick]").forEach(btn=>btn.onclick=()=>{
+        const item=libraryItems[Number(btn.dataset.libraryPick)];
+        if(!item?.url)return;
+        libraryList.querySelectorAll(".library-item").forEach(x=>x.classList.remove("selected"));
+        btn.classList.add("selected");
+        libraryStatus.textContent=`${item.title} · серия ${item.episode} выбрана.`;
+        onPick?.({title:`${item.title} · серия ${item.episode}`,player:item.url,thumbnail:"",duration:0,views:0,provider:"episode"});
+      });
+    }catch(err){
+      libraryStatus.innerHTML=`<span class="error-inline">${esc(err.message)}</span>`;
+    }
+  }
+  root.querySelector("[data-library-refresh]")?.addEventListener("click",loadLibrary);
+
   root.querySelectorAll("[data-media-tab]").forEach(tab=>tab.onclick=()=>{
     const name=tab.dataset.mediaTab;
     root.querySelectorAll("[data-media-tab]").forEach(x=>x.classList.toggle("active",x===tab));
     root.querySelectorAll("[data-media-pane]").forEach(p=>p.hidden=p.dataset.mediaPane!==name);
     if(name==="anime")setTimeout(()=>animeInput?.focus(),20);
     if(name==="vk")setTimeout(()=>vkPublicQuery?.focus(),20);
+    if(name==="library")loadLibrary();
   });
 }
 function openCreateRoomModal(){
