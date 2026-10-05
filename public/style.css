@@ -1187,3 +1187,39 @@ h1,h2,h3,.modal-title,.profile-name h1,.room-title h3,.motion-card b,.club-note-
 @media(prefers-reduced-motion:reduce){
   .archive-hero.hero-loop-pulse:after{display:none}
 }
+
+/* v37 — exact landscape hero uses the same playback engine as the working ambient clips */
+@media(min-width:901px){
+  .archive-hero{
+    position:relative!important;
+    min-height:100svh!important;
+    height:100svh!important;
+    overflow:hidden!important;
+    background:#050407!important;
+  }
+  .archive-hero .hero-main-video-desktop{
+    position:absolute!important;
+    inset:0!important;
+    width:100%!important;
+    height:100%!important;
+    max-width:none!important;
+    max-height:none!important;
+    aspect-ratio:auto!important;
+    object-fit:cover!important;
+    object-position:center center!important;
+    transform:none!important;
+    border:0!important;
+    box-shadow:none!important;
+    clip-path:none!important;
+    border-radius:0!important;
+    filter:none!important;
+    background:#050407!important;
+  }
+  .archive-hero .hero-overlay{
+    z-index:1!important;
+    background:
+      linear-gradient(90deg,rgba(7,6,11,.91) 0%,rgba(7,6,11,.74) 30%,rgba(7,6,11,.30) 52%,rgba(7,6,11,.06) 78%,rgba(7,6,11,.10) 100%),
+      linear-gradient(0deg,rgba(7,6,11,.72) 0%,transparent 36%)!important;
+  }
+  .archive-hero .hero-content{z-index:4!important}
+}
