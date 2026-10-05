@@ -286,7 +286,7 @@ function openAccountModal(){
 async function landingPage(){
   const i=figmaImages();
   const demos=figmaDemoRooms().slice(0,4);
-  newShell(`<main>
+  shell(`<main>
     <section class="hero"><img class="hero-image" src="${i.hero}" alt="Горный пейзаж в сумерках"><div class="hero-overlay"></div>
       <div class="container hero-content reveal"><span class="hero-kicker"><i></i> Вечер начинается здесь</span><h1>Кино ближе,<br><em>когда вы вместе</em></h1>
       <p>Смотрите любимые фильмы синхронно. Обсуждайте, смейтесь и проживайте каждую сцену — даже если между вами тысячи километров.</p>
@@ -315,7 +315,7 @@ function shell(content,opts={}){
 function mountCinemaIntro(){}
 function authPage(mode){
   const i=figmaImages();
-  newShell(`<main class="auth-page"><div class="auth-visual"><img src="${i.redEye}" alt="Кинематографичный портрет в красном свете"><div class="auth-quote"><span>СЕАНС № 1948</span><h2>Истории становятся<br>настоящими, когда<br>ими делятся.</h2></div></div>
+  shell(`<main class="auth-page"><div class="auth-visual"><img src="${i.redEye}" alt="Кинематографичный портрет в красном свете"><div class="auth-quote"><span>СЕАНС № 1948</span><h2>Истории становятся<br>настоящими, когда<br>ими делятся.</h2></div></div>
     <div class="auth-form-wrap"><div class="auth-mobile-logo">${logoHtml()}</div><a class="btn btn-ghost auth-back" href="/" data-nav>${cwIcon("back")}На главную</a>
       <form class="auth-form" id="authform"><span class="eyebrow">${mode==="login"?"С возвращением":"Добро пожаловать"}</span><h1>${mode==="login"?"Продолжим смотреть?":"Займите место"}</h1><p>${mode==="login"?"Войдите в аккаунт или используйте код комнаты.":"Создайте профиль для совместных кинопросмотров."}</p>
       <div class="auth-tabs"><a class="btn btn-ghost ${mode==="login"?"active":""}" href="/login" data-nav>Вход</a><a class="btn btn-ghost ${mode==="register"?"active":""}" href="/register" data-nav>Регистрация</a></div>
@@ -330,7 +330,7 @@ function authPage(mode){
 }
 async function roomsPage(){
   const d=await api("/api/my-rooms");
-  newShell(`<main class="page container"><div class="browse-top reveal"><div><span class="eyebrow">Живые комнаты</span><h1>Выбирайте, что смотреть</h1><p>Заходите без стука — здесь всегда оставлено место на диване.</p></div><button class="btn btn-primary" data-create>${cwIcon("plus")}<span class="btn-label">Новая комната</span></button></div>
+  shell(`<main class="page container"><div class="browse-top reveal"><div><span class="eyebrow">Живые комнаты</span><h1>Выбирайте, что смотреть</h1><p>Заходите без стука — здесь всегда оставлено место на диване.</p></div><button class="btn btn-primary" data-create>${cwIcon("plus")}<span class="btn-label">Новая комната</span></button></div>
     <div class="filter-row"><div class="tabs"><button class="btn btn-ghost active" data-filter="all">Все</button><button class="btn btn-ghost" data-filter="friends">Друзья смотрят</button><button class="btn btn-ghost" data-filter="open">Открытые</button><button class="btn btn-ghost" data-filter="classic">Классика</button></div>
       <label class="search-box">${cwIcon("search")}<input id="roomSearch" placeholder="Найти комнату, фильм или код"></label></div>
     <div id="roomsGrid" class="rooms-grid browse-grid">${d.rooms.length?d.rooms.map((r,n)=>roomCardHtml(r,n)).join(""):emptyStateHtml()}</div><div id="filterEmpty" hidden>${emptyStateHtml()}</div>
@@ -347,7 +347,7 @@ async function profilePage(){
   const i=figmaImages(), movies=figmaMovies();
   const next=me.minutesToNext||20,hours=Math.floor((me.watchMinutes||0)/60),unlocked=d.user.achievements.length,total=d.user.availableAchievements.length;
   const firstAchievements=d.user.availableAchievements.slice(0,3);
-  newShell(`<main class="profile-page"><section class="profile-hero"><img src="${i.chairs}" alt=""><div class="profile-shade"></div><div class="container profile-info">${avatarHtml(me.nickname,"lg")}<div class="profile-name"><span class="eyebrow">Профиль зрителя</span><h1>${esc(me.nickname)}</h1><p>@${esc(me.nickname.toLowerCase().replace(/\s+/g,""))} · ${esc(me.secretPrefix||me.prefix||"зритель")}</p></div><button class="btn btn-secondary" id="profileSettings">Настроить профиль</button></div></section>
+  shell(`<main class="profile-page"><section class="profile-hero"><img src="${i.chairs}" alt=""><div class="profile-shade"></div><div class="container profile-info">${avatarHtml(me.nickname,"lg")}<div class="profile-name"><span class="eyebrow">Профиль зрителя</span><h1>${esc(me.nickname)}</h1><p>@${esc(me.nickname.toLowerCase().replace(/\s+/g,""))} · ${esc(me.secretPrefix||me.prefix||"зритель")}</p></div><button class="btn btn-secondary" id="profileSettings">Настроить профиль</button></div></section>
     <div class="container profile-content"><section class="level-card"><div class="level-number">${String(me.level).padStart(2,"0")}</div><div class="level-copy"><span>УРОВЕНЬ</span><h3>${esc(me.secretPrefix||me.prefix||"Зритель")}</h3><div class="progress"><i style="width:${Math.max(0,Math.min(100,Number(me.progress||0)))}%"></i></div><p>${next} мин. до следующего уровня</p></div><div class="stats"><div><strong>${Math.max(0,Math.round((me.watchMinutes||0)/120))}</strong><span>Фильмов</span></div><div><strong>${hours}</strong><span>Часов</span></div><div><strong>${unlocked}</strong><span>Наград</span></div></div></section>
     <section class="profile-section"><div class="section-head"><div><span class="eyebrow">Последние сеансы</span><h2>История просмотров</h2></div><button class="btn btn-ghost">Вся история ${cwIcon("arrow")}</button></div><div class="history-grid">${figmaDemoRooms().slice(0,4).map((r,n)=>`<article class="history-card"><img src="${r.image}" alt=""><div><span>Досмотрено ${n===1?"на 74%":"полностью"}</span><h3>${esc(r.film)}</h3><p>В комнате «${esc(r.title)}»</p></div></article>`).join("")}</div></section>
     <section class="profile-section"><div class="section-head"><div><span class="eyebrow">Коллекция</span><h2>Знаки отличия</h2></div></div><div class="achievements">${firstAchievements.length?firstAchievements.map((a,n)=>`<div><b>${["35","12","∞"][n]||"•"}</b><span><strong>${esc(a.title)}</strong>${esc(a.desc)}</span></div>`).join(""):`<div><b>○</b><span><strong>Первый сеанс</strong>Знаки появятся после совместных просмотров</span></div>`}</div></section>
@@ -365,14 +365,14 @@ async function roomPage(code){
   try{
     const d=await api(`/api/rooms/${encodeURIComponent(code)}`);room=d.room;
     const people=room.users||[], movies=figmaMovies(), label=room.media?(room.media.type==="youtube"?"YouTube":room.media.type==="vk"?"VK Video":"Видео"):"Фильм не выбран";
-    newShell(`<main class="watch-page"><div class="watch-header container"><a class="btn btn-ghost" href="/rooms" data-nav>${cwIcon("back")}<span>Комнаты</span></a><div class="room-title"><span class="live-dot"></span><div><h3>Ночной экспресс</h3><span>Комната ${esc(room.code)} · ${people.length} зрителей</span></div></div><div class="participant-stack">${people.slice(0,3).map(u=>avatarHtml(u.nickname)).join("")}${people.length>3?`<span>+${people.length-3}</span>`:""}</div></div>
-      <div class="watch-layout container roomlayout ${room.media?"has-media":"needs-media"}"><section class="player-column"><div class="player video-shell" id="videobox">${newPlayerHtml(room.media)}<div class="movie-label"><span>СЕЙЧАС СМОТРИМ</span><strong>${esc(label)}</strong></div><div class="player-overlay" id="playerOverlay"><button type="button" class="player-chat-toggle" id="playerChatToggle">${cwIcon("chat")}</button><button type="button" class="player-fullscreen" id="playerFullscreen">${cwIcon("expand")}</button><div class="overlay-chat" id="overlayChat"><div class="overlay-head"><b>Чат</b><button id="overlayClose">×</button></div><div class="overlay-messages" id="overlayMessages"></div><form id="overlayForm"><input id="overlayInput" maxlength="500" placeholder="Написать сообщение…"><button type="submit">${cwIcon("send",17)}</button></form></div></div></div>
+    shell(`<main class="watch-page"><div class="watch-header container"><a class="btn btn-ghost" href="/rooms" data-nav>${cwIcon("back")}<span>Комнаты</span></a><div class="room-title"><span class="live-dot"></span><div><h3>Ночной экспресс</h3><span>Комната ${esc(room.code)} · ${people.length} зрителей</span></div></div><div class="participant-stack">${people.slice(0,3).map(u=>avatarHtml(u.nickname)).join("")}${people.length>3?`<span>+${people.length-3}</span>`:""}</div></div>
+      <div class="watch-layout container roomlayout ${room.media?"has-media":"needs-media"}"><section class="player-column"><div class="player video-shell" id="videobox">${playerHtml(room.media)}<div class="movie-label"><span>СЕЙЧАС СМОТРИМ</span><strong>${esc(label)}</strong></div><div class="player-overlay" id="playerOverlay"><button type="button" class="player-chat-toggle" id="playerChatToggle">${cwIcon("chat")}</button><button type="button" class="player-fullscreen" id="playerFullscreen">${cwIcon("expand")}</button><div class="overlay-chat" id="overlayChat"><div class="overlay-head"><b>Чат</b><button id="overlayClose">×</button></div><div class="overlay-messages" id="overlayMessages"></div><form id="overlayForm"><input id="overlayInput" maxlength="500" placeholder="Написать сообщение…"><button type="submit">${cwIcon("send",17)}</button></form></div></div></div>
       <div class="player-controls"><button class="btn btn-icon" id="seekBack" aria-label="Назад на 10 секунд">${cwIcon("back")}</button><button class="btn btn-icon" id="playerToggle" aria-label="Воспроизвести">${cwIcon(room.playing?"pause":"play")}</button><div class="timeline" id="fakeTimeline"><i></i><span></span></div><span class="time" id="playerTime">совместный просмотр</span><button class="btn btn-icon" aria-label="Громкость">${cwIcon("sound")}</button><button class="btn btn-icon" id="playerFullscreenBottom" aria-label="На весь экран">${cwIcon("expand")}</button></div>
       <div class="under-player"><div><h3>${esc(label)}</h3><span>Киноклуб «Ночной экспресс» · код ${esc(room.code)}</span></div><div class="reaction-row"><button class="btn btn-secondary" data-room-reaction="♥">${cwIcon("heart")}12</button><button class="btn btn-secondary" data-room-reaction="ХА">${cwIcon("smile")}8</button><button class="btn btn-primary" id="movieSelectorToggle">${cwIcon("film")}<span class="btn-label">Сменить кино</span></button></div></div>
       <div class="movie-selector" id="movieSelector" hidden><div class="selector-head"><div><span class="eyebrow">Следующий кадр</span><h3>Выберите кино</h3></div><button class="btn btn-icon" id="movieSelectorClose">${cwIcon("close")}</button></div><div class="movie-options">${movies.map(m=>`<button type="button" data-movie-hint="${esc(m.title)}"><img src="${m.image}" alt=""><span><strong>${m.title}</strong><small>${m.year}</small></span></button>`).join("")}</div><p class="selector-note">Совет киномеханика: вставьте ссылку — смена произойдёт одновременно у всех.</p><form id="mediaform" class="mediaform"><input id="mediaurl" placeholder="YouTube / VK / прямая ссылка" required><button class="btn btn-primary">${cwIcon("play")}<span class="btn-label">Поставить кино</span></button></form><div id="mediaerr"></div></div>
       </section>
       <aside class="chat-panel"><div class="chat-head"><div><h3>Чат</h3><span>${people.length} в комнате</span></div><div class="chat-head-actions"><button class="btn btn-ghost" id="invite">Пригласить</button><button class="btn btn-icon" id="peopleToggle" aria-label="Участники">${cwIcon("users")}</button></div></div>
-      <div class="participants-popover" id="peoplePopover" hidden><div id="people">${newPeopleHtml(people)}</div>${room.ownerId===me.id?`<button id="deleteRoom" class="btn btn-ghost danger-text">Удалить комнату</button>`:""}<button id="creatorBtn" class="btn btn-ghost">Создатель</button></div>
+      <div class="participants-popover" id="peoplePopover" hidden><div id="people">${peopleHtml(people)}</div>${room.ownerId===me.id?`<button id="deleteRoom" class="btn btn-ghost danger-text">Удалить комнату</button>`:""}<button id="creatorBtn" class="btn btn-ghost">Создатель</button></div>
       <div class="messages" id="messages"></div><div class="reaction-picker"><button type="button" data-chat-reaction="♥">♥</button><button type="button" data-chat-reaction="😂">😂</button><button type="button" data-chat-reaction="🔥">🔥</button><button type="button" data-chat-reaction="😮">😮</button></div><form id="chatform" class="chat-input"><input id="chatinput" maxlength="500" placeholder="Написать сообщение..."><button class="btn btn-icon" type="submit" aria-label="Отправить">${cwIcon("send")}</button></form></aside></div>
     </main>`,{bottom:false});
     bindRoom(code);
@@ -385,7 +385,7 @@ async function roomPage(code){
     $("#playerFullscreenBottom").onclick=()=>$("#playerFullscreen")?.click();
     $("#playerToggle").onclick=()=>{const playing=!room.playing;room.playing=playing;try{if(player?.playVideo)playing?player.playVideo():player.pauseVideo();else if(vkPlayer?.play)playing?vkPlayer.play():vkPlayer.pause();else if(localVideo)playing?localVideo.play().catch(()=>{}):localVideo.pause()}catch{}sendState(playing,getPosition(),playing?"play":"pause");$("#playerToggle").innerHTML=cwIcon(playing?"pause":"play")};
     $("#seekBack").onclick=()=>{const p=Math.max(0,getPosition()-10);applyPosition(p);sendState(!!room.playing,p,"seek")};
-  }catch(e){newShell(`<main class="page container"><div class="error">${esc(e.message)}</div><a class="btn btn-secondary" href="/rooms" data-nav>Вернуться к комнатам</a></main>`)}
+  }catch(e){shell(`<main class="page container"><div class="error">${esc(e.message)}</div><a class="btn btn-secondary" href="/rooms" data-nav>Вернуться к комнатам</a></main>`)}
 }
 function peopleHtml(users){
   return users.length?users.map(u=>`<div class="person">${avatarHtml(u.nickname,"sm")}<div><div>${esc(u.nickname)}</div><div class="level">${esc(u.secretPrefix||u.prefix||"Зритель")} · ур. ${u.level}</div></div>${u.id===me.id?'<span class="level">(вы)</span>':""}</div>`).join(""):`<span class="muted small">Никого онлайн</span>`;
@@ -515,7 +515,7 @@ function mountMedia(){
   player=null;vkPlayer=null;localVideo=null;lastYTPosition=null;lastVKPosition=null;lastAppliedSeq=0;remoteApplyUntil=0;
   const box=$("#videobox");if(!box)return;const current=room.media;
   const label=current?(current.type==="youtube"?"YouTube":current.type==="vk"?"VK Video":"Видео"):"Фильм не выбран";
-  box.innerHTML=newPlayerHtml(current)+`<div class="movie-label"><span>СЕЙЧАС СМОТРИМ</span><strong>${esc(label)}</strong></div><div class="player-overlay" id="playerOverlay"><button type="button" class="player-chat-toggle" id="playerChatToggle">${cwIcon("chat")}</button><button type="button" class="player-fullscreen" id="playerFullscreen">${cwIcon("expand")}</button><div class="overlay-chat" id="overlayChat"><div class="overlay-head"><b>Чат</b><button id="overlayClose">×</button></div><div class="overlay-messages" id="overlayMessages"></div><form id="overlayForm"><input id="overlayInput" maxlength="500" placeholder="Написать сообщение…"><button type="submit">${cwIcon("send",17)}</button></form></div></div>`;
+  box.innerHTML=playerHtml(current)+`<div class="movie-label"><span>СЕЙЧАС СМОТРИМ</span><strong>${esc(label)}</strong></div><div class="player-overlay" id="playerOverlay"><button type="button" class="player-chat-toggle" id="playerChatToggle">${cwIcon("chat")}</button><button type="button" class="player-fullscreen" id="playerFullscreen">${cwIcon("expand")}</button><div class="overlay-chat" id="overlayChat"><div class="overlay-head"><b>Чат</b><button id="overlayClose">×</button></div><div class="overlay-messages" id="overlayMessages"></div><form id="overlayForm"><input id="overlayInput" maxlength="500" placeholder="Написать сообщение…"><button type="submit">${cwIcon("send",17)}</button></form></div></div>`;
   setupPlayerOverlay();
   if(!current)return;
   if(current.type==="youtube"){
@@ -653,13 +653,13 @@ async function render(){
   clearInterval(window.__cwHeartbeat);clearInterval(window.__cwMessageRefresh);clearInterval(window.__ytSeekWatch);
   const path=location.pathname;
   if(path==="/"){await landingPage();return}
-  if(path==="/login"){newAuthPage("login");return}
-  if(path==="/register"){newAuthPage("register");return}
-  if(!me){history.replaceState({},"","/login"+location.search);newAuthPage("login");return}
-  if(path==="/rooms"){await newRoomsPage();return}
-  if(path==="/profile"){await newProfilePage();return}
-  const m=path.match(/^\/room\/([A-Za-z0-9]+)$/);if(m){await newRoomPage(m[1].toUpperCase());return}
-  history.replaceState({},"",me?"/rooms":"/");await newRender();
+  if(path==="/login"){authPage("login");return}
+  if(path==="/register"){authPage("register");return}
+  if(!me){history.replaceState({},"","/login"+location.search);authPage("login");return}
+  if(path==="/rooms"){await roomsPage();return}
+  if(path==="/profile"){await profilePage();return}
+  const m=path.match(/^\/room\/([A-Za-z0-9]+)$/);if(m){await roomPage(m[1].toUpperCase());return}
+  history.replaceState({},"",me?"/rooms":"/");await render();
 }
 function initCinematicIntro(){
   if(document.querySelector(".intro"))return;
