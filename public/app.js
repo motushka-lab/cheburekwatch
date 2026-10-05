@@ -353,6 +353,8 @@ function joinByCode(code,errorTarget){
 }
 
 
+let vkBrowserAccessToken="";
+let vkBrowserTokenExpiresAt=0;
 const VK_ID_APP = 54806525;
 const VK_ID_REDIRECT = "https://cheburekwatch.onrender.com/auth/vk/callback";
 let vkIdConfigured=false;
@@ -394,8 +396,10 @@ async function mountVkOneTap(container,onConnected){
           const data=await VKID.Auth.exchangeCode(payload.code,payload.device_id);
           const accessToken=String(data?.access_token||data?.accessToken||"");
           if(!accessToken)throw new Error("VK ID не вернул access token");
-          await api("/api/vk/connect",{method:"POST",body:{accessToken,expiresIn:Number(data?.expires_in||data?.expiresIn||3600)}});
-          container.innerHTML='<div class="vk-connected-badge">'+cwIcon("check",15)+'<span><b>VK подключён</b><small>Поиск видео доступен в этой сессии</small></span></div>';
+          vkBrowserAccessToken=accessToken;
+          vkBrowserTokenExpiresAt=Date.now()+Math.max(60,Number(data?.expires_in||data?.expiresIn||3600))*1000;
+          container.classList.remove("is-loading");
+          container.innerHTML='<div class="vk-connected-badge">'+cwIcon("check",15)+'<span><b>VK подключён</b><small>Поиск идёт прямо из браузера — без привязки к IP Render</small></span></div>';
           onConnected?.();
         }catch(err){
           container.classList.remove("is-loading");
@@ -406,6 +410,50 @@ async function mountVkOneTap(container,onConnected){
   }catch(err){
     container.innerHTML='<div class="error">'+esc(err.message||"Не удалось открыть VK ID")+'</div>';
   }
+}
+
+function vkBrowserConnected(){
+  if(vkBrowserTokenExpiresAt && vkBrowserTokenExpiresAt<=Date.now()){
+    vkBrowserAccessToken="";vkBrowserTokenExpiresAt=0;
+  }
+  return !!vkBrowserAccessToken;
+}
+function vkJsonp(method,params={},timeoutMs=10000){
+  return new Promise((resolve,reject)=>{
+    if(!vkBrowserConnected()){reject(new Error("Подключите VK ID"));return}
+    const callback="__cwVkCb"+Date.now().toString(36)+Math.random().toString(36).slice(2);
+    const script=document.createElement("script");
+    const timer=setTimeout(()=>finish(new Error("VK Video не ответил вовремя")),timeoutMs);
+    const finish=(err,data)=>{
+      clearTimeout(timer);
+      try{delete window[callback]}catch{window[callback]=undefined}
+      script.remove();
+      if(err)reject(err);else resolve(data);
+    };
+    window[callback]=data=>{
+      if(data?.error)finish(new Error(String(data.error.error_msg||"VK API вернул ошибку")));
+      else finish(null,data);
+    };
+    const q=new URLSearchParams({...params,access_token:vkBrowserAccessToken,v:"5.199",callback});
+    script.src="https://api.vk.com/method/"+method+"?"+q.toString();
+    script.async=true;
+    script.onerror=()=>finish(new Error("Не удалось обратиться к VK Video из браузера"));
+    document.head.appendChild(script);
+  });
+}
+async function vkBrowserSearch(q){
+  const data=await vkJsonp("video.search",{q,sort:"2",adult:"0",filters:"vk",count:"12",extended:"0"});
+  const raw=Array.isArray(data?.response?.items)?data.response.items:[];
+  return raw.filter(v=>v&&v.player&&!v.processing&&!v.converting&&!v.content_restricted).map(v=>{
+    const images=Array.isArray(v.image)?[...v.image]:[];
+    images.sort((a,b)=>Number(b.width||0)-Number(a.width||0));
+    return {
+      id:Number(v.id),ownerId:Number(v.owner_id),title:String(v.title||"Без названия"),
+      duration:Number(v.duration||0),views:Number(v.views||0),
+      thumbnail:String(images.find(x=>/^https?:\/\//i.test(String(x?.url||"")))?.url||""),
+      player:String(v.player||""),type:String(v.type||"video")
+    };
+  }).slice(0,12);
 }
 
 function formatVideoDuration(total){
@@ -420,22 +468,38 @@ function formatViews(v){
   return String(Math.floor(v));
 }
 function vkSearchPanelHtml(id){
-  return `<section class="vk-search-panel" id="${id}" data-vk-search>
-    <div class="vk-search-head"><div><span class="eyebrow">VK VIDEO</span><h3>НАЙТИ КИНО СРАЗУ</h3></div><span class="vk-search-mark">VK</span></div>
-    <form class="vk-search-form" data-vk-search-form>
-      <label class="vk-search-box">${cwIcon("search",18)}<input data-vk-query maxlength="120" autocomplete="off" placeholder="Название фильма, сериала или видео"></label>
-      <button class="btn btn-primary" type="submit"><span class="btn-label">ИСКАТЬ</span></button>
-    </form>
-    <div class="vk-connect-gate" data-vk-gate hidden>
-      <div class="vk-connect-copy"><b>Подключите VK ID</b><span>Без защищённого ключа: вход проходит через официальный виджет VK.</span></div>
-      <div class="vk-onetap-slot" data-vk-onetap></div>
+  return `<section class="media-discovery" id="${id}" data-media-discovery>
+    <div class="media-source-tabs">
+      <button class="active" type="button" data-media-tab="vk">VK VIDEO</button>
+      <button type="button" data-media-tab="anime">АНИМЕ</button>
     </div>
-    <div class="vk-search-status" data-vk-status>Введите название — покажу результаты из VK Video.</div>
-    <div class="vk-search-results" data-vk-results></div>
-    <div class="vk-search-selected" data-vk-selected hidden></div>
+    <div data-media-pane="vk">
+      <div class="vk-search-head"><div><span class="eyebrow">VK VIDEO</span><h3>НАЙТИ КИНО СРАЗУ</h3></div><span class="vk-search-mark">VK</span></div>
+      <form class="vk-search-form" data-vk-search-form>
+        <label class="vk-search-box">${cwIcon("search",18)}<input data-vk-query maxlength="120" autocomplete="off" placeholder="Название фильма, сериала или видео"></label>
+        <button class="btn btn-primary" type="submit"><span class="btn-label">ИСКАТЬ</span></button>
+      </form>
+      <div class="vk-connect-gate" data-vk-gate hidden>
+        <div class="vk-connect-copy"><b>Подключите VK ID</b><span>Поиск выполняется из вашего браузера, чтобы VK не ругался на другой IP.</span></div>
+        <div class="vk-onetap-slot" data-vk-onetap></div>
+      </div>
+      <div class="vk-search-status" data-vk-status>Введите название — покажу результаты из VK Video.</div>
+      <div class="vk-search-results" data-vk-results></div>
+      <div class="vk-search-selected" data-vk-selected hidden></div>
+    </div>
+    <div data-media-pane="anime" hidden>
+      <div class="anime-search-head"><div><span class="eyebrow">ANILIST</span><h3>НАЙТИ АНИМЕ</h3></div><span class="anime-search-mark">ANIME</span></div>
+      <form class="anime-search-form" data-anime-search-form>
+        <label class="vk-search-box">${cwIcon("search",18)}<input data-anime-query maxlength="120" autocomplete="off" placeholder="JoJo, Frieren, Attack on Titan…"></label>
+        <button class="btn btn-primary" type="submit"><span class="btn-label">ИСКАТЬ</span></button>
+      </form>
+      <div class="anime-search-status" data-anime-status>Поиск по каталогу AniList. Сам AniList не хранит серии — только каталог и официальные ссылки.</div>
+      <div class="anime-search-results" data-anime-results></div>
+      <div class="anime-selected" data-anime-selected hidden></div>
+    </div>
   </section>`;
 }
-function bindVkSearch(root,{onPick}={}){
+function bindVkSearch(root,{onPick,onAnime}={}){
   if(!root || root.dataset.bound==="1")return;
   root.dataset.bound="1";
   const form=root.querySelector("[data-vk-search-form]");
@@ -445,69 +509,97 @@ function bindVkSearch(root,{onPick}={}){
   const selected=root.querySelector("[data-vk-selected]");
   const gate=root.querySelector("[data-vk-gate]");
   const oneTapSlot=root.querySelector("[data-vk-onetap]");
-  let seq=0,items=[],connected=false;
+  let seq=0,items=[];
 
   const setConnected=on=>{
-    connected=!!on;
-    gate.hidden=connected;
-    form.classList.toggle("is-disabled",!connected);
-    input.disabled=!connected;
-    form.querySelector("button[type=submit]").disabled=!connected;
-    if(connected)status.textContent="VK подключён. Введите название видео.";
+    gate.hidden=!!on;
+    form.classList.toggle("is-disabled",!on);
+    input.disabled=!on;
+    form.querySelector("button[type=submit]").disabled=!on;
+    if(on)status.textContent="VK подключён. Введите название видео.";
   };
-
-  const ensureAuth=async()=>{
-    const state=await vkStatus();
-    setConnected(!!state.connected);
-    if(!state.connected){
+  const ensureAuth=()=>{
+    const connected=vkBrowserConnected();
+    setConnected(connected);
+    if(!connected){
       status.textContent="Сначала подключите VK ID.";
       mountVkOneTap(oneTapSlot,()=>setConnected(true));
     }
   };
-
-  const render=()=>{
+  const renderVk=()=>{
     results.innerHTML=items.map((item,i)=>`<button class="vk-result" type="button" data-vk-pick="${i}">
       <span class="vk-result-thumb">${item.thumbnail?`<img src="${esc(item.thumbnail)}" alt="" loading="lazy">`:'<i>VK</i>'}<b>${formatVideoDuration(item.duration)}</b></span>
       <span class="vk-result-copy"><strong>${esc(item.title)}</strong><small>${formatViews(item.views)} просмотров · VK Video</small></span>
       <span class="vk-result-play">${cwIcon("play",16)}</span>
     </button>`).join("");
     results.querySelectorAll("[data-vk-pick]").forEach(btn=>btn.onclick=()=>{
-      const item=items[Number(btn.dataset.vkPick)];
-      if(!item)return;
+      const item=items[Number(btn.dataset.vkPick)];if(!item)return;
       selected.hidden=false;
       selected.innerHTML=`${cwIcon("check",15)}<span><b>${esc(item.title)}</b><small>Будет установлен в комнату</small></span>`;
-      results.querySelectorAll(".vk-result").forEach(x=>x.classList.remove("selected"));
-      btn.classList.add("selected");
+      results.querySelectorAll(".vk-result").forEach(x=>x.classList.remove("selected"));btn.classList.add("selected");
       onPick?.(item);
     });
   };
-
   form.onsubmit=async e=>{
     e.preventDefault();
-    if(!connected){await ensureAuth();return}
-    const q=input.value.trim();
-    if(q.length<2){status.textContent="Введите хотя бы 2 символа.";return}
-    const request=++seq;
-    status.innerHTML='<span class="button-loader"></span> Ищу в VK Video…';
-    results.innerHTML="";
+    if(!vkBrowserConnected()){ensureAuth();return}
+    const q=input.value.trim();if(q.length<2){status.textContent="Введите хотя бы 2 символа.";return}
+    const request=++seq;status.innerHTML='<span class="button-loader"></span> Ищу в VK Video…';results.innerHTML="";
     try{
-      const data=await api("/api/vk/search?q="+encodeURIComponent(q),{method:"GET"});
-      if(request!==seq)return;
-      items=Array.isArray(data.items)?data.items:[];
+      const found=await vkBrowserSearch(q);if(request!==seq)return;items=found;
       status.textContent=items.length?`Найдено: ${items.length}. Выберите нужное видео.`:"Ничего не нашлось. Попробуйте другой запрос.";
-      render();
+      renderVk();
     }catch(err){
       if(request!==seq)return;
-      if(/подключите vk id/i.test(err.message||"")){
-        setConnected(false);
-        mountVkOneTap(oneTapSlot,()=>setConnected(true));
-      }
-      items=[];results.innerHTML="";
-      status.innerHTML=`<span class="error-inline">${esc(err.message)}</span>`;
+      items=[];results.innerHTML="";status.innerHTML=`<span class="error-inline">${esc(err.message)}</span>`;
+      if(/подключите vk id/i.test(err.message||""))ensureAuth();
+    }
+  };
+  ensureAuth();
+
+  const animeForm=root.querySelector("[data-anime-search-form]");
+  const animeInput=root.querySelector("[data-anime-query]");
+  const animeStatus=root.querySelector("[data-anime-status]");
+  const animeResults=root.querySelector("[data-anime-results]");
+  const animeSelected=root.querySelector("[data-anime-selected]");
+  let animeSeq=0,animeItems=[];
+
+  const renderAnime=()=>{
+    animeResults.innerHTML=animeItems.map((item,i)=>`<button class="anime-result" type="button" data-anime-pick="${i}">
+      <span class="anime-result-poster">${item.poster?`<img src="${esc(item.poster)}" alt="" loading="lazy">`:""}${item.score?`<b>${item.score}%</b>`:""}</span>
+      <span class="anime-result-copy"><strong>${esc(item.title)}</strong><small>${[item.year||"",item.format||"",item.episodes?item.episodes+" эп.":""].filter(Boolean).join(" · ")}</small><em>${(item.genres||[]).map(esc).join(" / ")}</em></span>
+    </button>`).join("");
+    animeResults.querySelectorAll("[data-anime-pick]").forEach(btn=>btn.onclick=()=>{
+      const item=animeItems[Number(btn.dataset.animePick)];if(!item)return;
+      animeResults.querySelectorAll(".anime-result").forEach(x=>x.classList.remove("selected"));btn.classList.add("selected");
+      const sources=Array.isArray(item.sources)?item.sources:[];
+      animeSelected.hidden=false;
+      animeSelected.innerHTML=`<div class="anime-selected-card">${item.poster?`<img src="${esc(item.poster)}" alt="">`:""}<div><span class="eyebrow">ВЫБРАНО</span><b>${esc(item.title)}</b><small>AniList даёт каталог, но не видеофайл.</small></div></div>
+        ${sources.length?`<div class="anime-source-list"><span>Официальные/указанные источники</span>${sources.slice(0,6).map(src=>`<a href="${esc(src.url)}" target="_blank" rel="noopener noreferrer">${esc(src.site||"Источник")}${src.title?` · ${esc(src.title)}`:""} ${cwIcon("arrow",14)}</a>`).join("")}</div>`:'<div class="anime-no-source">Для этого тайтла AniList не вернул доступных источников.</div>'}`;
+      onAnime?.(item);
+    });
+  };
+  animeForm.onsubmit=async e=>{
+    e.preventDefault();
+    const q=animeInput.value.trim();if(q.length<2){animeStatus.textContent="Введите хотя бы 2 символа.";return}
+    const request=++animeSeq;animeStatus.innerHTML='<span class="button-loader"></span> Ищу в AniList…';animeResults.innerHTML="";
+    try{
+      const data=await api("/api/anime/search?q="+encodeURIComponent(q),{method:"GET"});
+      if(request!==animeSeq)return;animeItems=Array.isArray(data.items)?data.items:[];
+      animeStatus.textContent=animeItems.length?`Найдено: ${animeItems.length}. Выберите тайтл.`:"Ничего не нашлось.";
+      renderAnime();
+    }catch(err){
+      if(request!==animeSeq)return;animeItems=[];animeResults.innerHTML="";animeStatus.innerHTML=`<span class="error-inline">${esc(err.message)}</span>`;
     }
   };
 
-  ensureAuth();
+  root.querySelectorAll("[data-media-tab]").forEach(tab=>tab.onclick=()=>{
+    const name=tab.dataset.mediaTab;
+    root.querySelectorAll("[data-media-tab]").forEach(x=>x.classList.toggle("active",x===tab));
+    root.querySelectorAll("[data-media-pane]").forEach(p=>p.hidden=p.dataset.mediaPane!==name);
+    if(name==="anime")setTimeout(()=>animeInput?.focus(),20);
+    if(name==="vk")setTimeout(()=>input?.focus(),20);
+  });
 }
 function openCreateRoomModal(){
   if(!me){navigate("/login");return}
@@ -517,7 +609,7 @@ function openCreateRoomModal(){
   wrap.className="modal-backdrop";
   wrap.innerHTML=`<div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
     <div class="modal-head"><div><span class="eyebrow">НОВАЯ ГЛАВА</span><h2 class="modal-title" id="modal-title">ОТКРЫТЬ КОМНАТУ</h2></div><button class="btn btn-icon" data-close-modal aria-label="Закрыть">${cwIcon("close")}</button></div>
-    <div class="modal-poster"><img src="${archivePhoto(2)}" alt="" id="createRoomPoster"><div><span>Источник можно выбрать сейчас или уже внутри комнаты</span><h3 id="createRoomMovieTitle">КАКОЙ КАДР ОТКРОЕТ ГЛАВУ?</h3><button class="btn btn-paper" type="button" id="pickMovie">${cwIcon("search")}НАЙТИ В VK VIDEO</button></div></div>
+    <div class="modal-poster"><img src="${archivePhoto(2)}" alt="" id="createRoomPoster"><div><span>Источник можно выбрать сейчас или уже внутри комнаты</span><h3 id="createRoomMovieTitle">КАКОЙ КАДР ОТКРОЕТ ГЛАВУ?</h3><button class="btn btn-paper" type="button" id="pickMovie">${cwIcon("search")}НАЙТИ КИНО / АНИМЕ</button></div></div>
     <div id="createVkSearchWrap" hidden>${vkSearchPanelHtml("createVkSearch")}</div>
     <label class="field"><span>ИМЯ ГЛАВЫ</span><input id="newRoomName" placeholder="Название вашей главы" maxlength="60"></label>
     <div class="privacy-options">
@@ -536,12 +628,20 @@ function openCreateRoomModal(){
   }));
   let selectedMediaUrl="";
   const searchWrap=wrap.querySelector("#createVkSearchWrap");
-  bindVkSearch(wrap.querySelector("#createVkSearch"),{onPick:item=>{
-    selectedMediaUrl=item.player;
-    const poster=wrap.querySelector("#createRoomPoster");
-    if(item.thumbnail)poster.src=item.thumbnail;
-    wrap.querySelector("#createRoomMovieTitle").textContent=item.title;
-  }});
+  bindVkSearch(wrap.querySelector("#createVkSearch"),{
+    onPick:item=>{
+      selectedMediaUrl=item.player;
+      const poster=wrap.querySelector("#createRoomPoster");
+      if(item.thumbnail)poster.src=item.thumbnail;
+      wrap.querySelector("#createRoomMovieTitle").textContent=item.title;
+    },
+    onAnime:item=>{
+      selectedMediaUrl="";
+      const poster=wrap.querySelector("#createRoomPoster");
+      if(item.poster)poster.src=item.poster;
+      wrap.querySelector("#createRoomMovieTitle").textContent=item.title;
+    }
+  });
   wrap.querySelector("#pickMovie")?.addEventListener("click",()=>{
     searchWrap.hidden=!searchWrap.hidden;
     if(!searchWrap.hidden)setTimeout(()=>searchWrap.querySelector("[data-vk-query]")?.focus(),30);
