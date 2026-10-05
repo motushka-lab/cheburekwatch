@@ -1335,3 +1335,16 @@ h1,h2,h3,.modal-title,.profile-name h1,.room-title h3,.motion-card b,.club-note-
   .anime-search-head h3{font-size:15px}.anime-search-form{grid-template-columns:1fr}.anime-search-form .btn{width:100%}
   .anime-search-results{grid-template-columns:1fr;max-height:330px}.anime-result{grid-template-columns:64px 1fr}.anime-result-poster{width:64px;height:90px}
 }
+
+/* v41 — stable VK fallback + public anime catalogue */
+.vk-public-note{
+  margin:0 0 12px;padding:10px 12px;border:1px solid #3e3549;background:#0c0a10;
+  color:#b8aebf;font-size:9px;line-height:1.55;
+}
+.vk-public-note code{color:#efc56f;font:700 9px/1.4 ui-monospace,SFMono-Regular,Consolas,monospace}
+.vk-public-search,.vk-link-pick{display:grid;grid-template-columns:1fr auto;gap:8px}
+.vk-link-pick{margin-top:8px}
+@media(max-width:700px){
+  .vk-public-search,.vk-link-pick{grid-template-columns:1fr}
+  .vk-public-search .btn,.vk-link-pick .btn{width:100%}
+}
