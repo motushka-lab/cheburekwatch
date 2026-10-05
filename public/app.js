@@ -589,7 +589,7 @@ function bindVkSearch(root,{onPick,onAnime}={}){
         <div class="episode-picker">
           <div class="episode-picker-head"><div><span class="eyebrow">ЭПИЗОД</span><b>КАКУЮ СЕРИЮ СМОТРИМ?</b></div><div class="episode-page-controls"><button class="btn btn-icon" type="button" data-episode-prev>${cwIcon("back",15)}</button><span data-episode-range></span><button class="btn btn-icon" type="button" data-episode-next>${cwIcon("arrow",15)}</button></div></div>
           <div class="episode-grid" data-episode-grid></div>
-          <div class="episode-status" data-episode-status>Нажмите номер серии — она откроется прямо в комнате.</div><div class="episode-region-note">Доступность зависит от региона. Если сам плеер Bilibili не открывается в вашей сети, может понадобиться VPN.</div>
+          <div class="episode-status" data-episode-status>Нажмите номер серии — CheburekWatch возьмёт её из вашей библиотеки.</div><div class="episode-region-note">Серии добавляются владельцем через Telegram-бота. Случайные внешние источники больше не используются.</div>
         </div>`;
 
       const epGrid=animeSelected.querySelector("[data-episode-grid]");
@@ -607,7 +607,7 @@ function bindVkSearch(root,{onPick,onAnime}={}){
           }});
           const src=data.source;
           if(!src?.url)throw new Error("Источник не найден");
-          epStatus.innerHTML=`${cwIcon("check",14)} Серия ${episode} готова к просмотру.${src.regionLimited?" Возможны региональные ограничения.":""}`;
+          epStatus.innerHTML=`${cwIcon("check",14)} Серия ${episode} готова к просмотру.`;
           onPick?.({title:`${item.title} · серия ${episode}`,player:src.url,thumbnail:src.thumbnail||item.poster,duration:src.duration||0,views:0,provider:"episode"});
         }catch(err){
           epStatus.innerHTML=`<span class="error-inline">${esc(err.message)}</span>`;
