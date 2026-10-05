@@ -260,6 +260,7 @@ function cwIcon(name,size=20){
   const p={
     arrow:'<path d="M5 12h14"/><path d="m14 7 5 5-5 5"/>',
     back:'<path d="m15 18-6-6 6-6"/>',
+    book:'<path d="M4 5.5A3.5 3.5 0 0 1 7.5 2H12v17H7.5A3.5 3.5 0 0 0 4 22z"/><path d="M20 5.5A3.5 3.5 0 0 0 16.5 2H12v17h4.5A3.5 3.5 0 0 1 20 22z"/>',
     chat:'<path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z"/>',
     check:'<path d="m5 12 4 4L19 6"/>',
     close:'<path d="M6 6l12 12"/><path d="m18 6-12 12"/>',
@@ -290,6 +291,35 @@ function avatarHtml(name,size="md"){
   return `<div class="avatar avatar-${size}" title="${safe}">${esc(String(name||"?").slice(0,1).toUpperCase())}</div>`;
 }
 
+function mangaModeEnabled(){
+  return localStorage.getItem("cw-manga-mode")==="1";
+}
+function refreshMangaToggleLabels(){
+  const on=document.body.classList.contains("manga-mode");
+  document.querySelectorAll("[data-manga-toggle]").forEach(btn=>{
+    btn.setAttribute("aria-pressed",on?"true":"false");
+    btn.classList.toggle("active",on);
+    const label=btn.querySelector("[data-manga-label]");
+    if(label)label.textContent=on?(btn.classList.contains("bottom-manga-toggle")?"Кино":"CINEMA MODE"):(btn.classList.contains("bottom-manga-toggle")?"Манга":"MANGA MODE");
+  });
+}
+function applyMangaMode(on=mangaModeEnabled(),animate=false){
+  document.body.classList.toggle("manga-mode",!!on);
+  document.documentElement.dataset.manga=on?"1":"0";
+  if(animate){
+    document.body.classList.remove("manga-switching");
+    void document.body.offsetWidth;
+    document.body.classList.add("manga-switching");
+    setTimeout(()=>document.body.classList.remove("manga-switching"),520);
+  }
+  refreshMangaToggleLabels();
+}
+function toggleMangaMode(){
+  const next=!document.body.classList.contains("manga-mode");
+  localStorage.setItem("cw-manga-mode",next?"1":"0");
+  applyMangaMode(next,true);
+}
+
 function headerHtml(){
   const path=location.pathname;
   const activeHome=path==="/";
@@ -299,6 +329,7 @@ function headerHtml(){
     <nav class="desktop-nav">
       <a class="btn btn-ghost ${activeHome?"active":""}" href="/" data-nav>Главная</a>
       <a class="btn btn-ghost ${activeRooms?"active":""}" href="${me?"/rooms":"/login"}" data-nav>Комнаты</a>
+      <button class="btn btn-ghost manga-mode-toggle" type="button" data-manga-toggle aria-pressed="${mangaModeEnabled()?"true":"false"}">${cwIcon("book",17)}<span data-manga-label>${mangaModeEnabled()?"CINEMA MODE":"MANGA MODE"}</span></button>
     </nav>
     <div class="header-actions">
       ${me?`<button class="btn btn-secondary" data-create>${cwIcon("plus")}<span class="btn-label">ОТКРЫТЬ КОМНАТУ</span></button>
@@ -314,6 +345,7 @@ function bottomNavHtml(){
     <a class="btn btn-ghost ${p==="/"?"active":""}" href="/" data-nav>${cwIcon("home")}<span>Главная</span></a>
     <a class="btn btn-ghost ${p==="/rooms"?"active":""}" href="/rooms" data-nav>${cwIcon("search")}<span>Комнаты</span></a>
     <a class="btn btn-ghost ${p==="/profile"?"active":""}" href="/profile" data-nav>${cwIcon("user")}<span>Профиль</span></a>
+    <button class="btn btn-ghost bottom-manga-toggle" type="button" data-manga-toggle aria-pressed="${mangaModeEnabled()?"true":"false"}>${cwIcon("book")}<span data-manga-label>${mangaModeEnabled()?"Кино":"Манга"}</span></button>
   </nav>`;
 }
 
@@ -734,7 +766,9 @@ function shell(content,opts={}){
   app.innerHTML=`<div class="app"><div class="page-stage">${showHeader?headerHtml():""}${content}${showBottom?bottomNavHtml():""}</div><div class="page-curtain"></div></div>`;
   document.querySelectorAll("[data-nav]").forEach(a=>a.addEventListener("click",e=>{e.preventDefault();navigate(a.getAttribute("href"))}));
   document.querySelectorAll("[data-create]").forEach(b=>b.addEventListener("click",()=>me?openCreateRoomModal():navigate("/login")));
+  document.querySelectorAll("[data-manga-toggle]").forEach(b=>b.addEventListener("click",toggleMangaMode));
   document.querySelectorAll("[data-demo-open]").forEach(b=>b.addEventListener("click",()=>navigate(me?"/rooms":"/login")));
+  applyMangaMode(document.body.classList.contains("manga-mode"));
 }
 
 function mountCinemaIntro(){}
@@ -1177,4 +1211,5 @@ function initCinematicIntro(){
   setTimeout(()=>{intro.remove();sessionStorage.setItem("cw-seen-intro","1");window.dispatchEvent(new CustomEvent("cw:intro-finished"))},hold+(reduced?30:650));
 }
 
+applyMangaMode(mangaModeEnabled());
 (async()=>{initCinematicIntro();try{me=(await api("/api/me")).user}catch{};await render()})();
