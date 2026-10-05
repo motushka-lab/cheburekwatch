@@ -550,7 +550,7 @@ app.get("/api/profile", requireAuth, (req, res) => {
   res.json({ user: stats });
 });
 
-app.use("/site-assets", express.static(SITE_MEDIA_DIR, { maxAge: "7d", immutable: true }));
+app.use("/site-assets", express.static(SITE_MEDIA_DIR, { maxAge: "5m", etag: true }));
 
 // SPA fallback
 app.use(express.static(path.join(__dirname, "public")));
