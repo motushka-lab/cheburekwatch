@@ -445,6 +445,88 @@ app.get("/api/vk/search", requireAuth, async (req, res) => {
   }
 });
 
+// Anime catalogue search via AniList. This returns metadata/official links, not pirated streams.
+app.get("/api/anime/search", requireAuth, async (req, res) => {
+  const q = String(req.query.q || "").trim().slice(0, 120);
+  if (q.length < 2) return res.status(400).json({ error: "Введите хотя бы 2 символа" });
+
+  const query = `query ($search: String) {
+    Page(page: 1, perPage: 12) {
+      media(search: $search, type: ANIME, sort: [SEARCH_MATCH, POPULARITY_DESC]) {
+        id
+        title { romaji english native }
+        coverImage { extraLarge large color }
+        bannerImage
+        seasonYear
+        format
+        episodes
+        duration
+        genres
+        averageScore
+        status
+        isAdult
+        streamingEpisodes { title thumbnail url site }
+        externalLinks { site url type }
+      }
+    }
+  }`;
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 9000);
+  try {
+    const response = await fetch("https://graphql.anilist.co", {
+      method: "POST",
+      signal: controller.signal,
+      headers: { "Content-Type": "application/json", "Accept": "application/json" },
+      body: JSON.stringify({ query, variables: { search: q } })
+    });
+    const data = await response.json();
+    if (!response.ok || data.errors) {
+      return res.status(502).json({ error: String(data?.errors?.[0]?.message || "AniList временно недоступен") });
+    }
+    const raw = Array.isArray(data.data?.Page?.media) ? data.data.Page.media : [];
+    const items = raw.filter(x => x && !x.isAdult).map(x => {
+      const title = x.title?.english || x.title?.romaji || x.title?.native || "Без названия";
+      const streamLinks = [
+        ...(Array.isArray(x.streamingEpisodes) ? x.streamingEpisodes.map(e => ({
+          site: String(e.site || "Источник"),
+          title: String(e.title || ""),
+          url: String(e.url || ""),
+          thumbnail: String(e.thumbnail || "")
+        })) : []),
+        ...(Array.isArray(x.externalLinks) ? x.externalLinks.filter(e => String(e.type || "").toUpperCase() === "STREAMING").map(e => ({
+          site: String(e.site || "Источник"),
+          title: "",
+          url: String(e.url || ""),
+          thumbnail: ""
+        })) : [])
+      ].filter((v,i,a) => /^https?:\/\//i.test(v.url) && a.findIndex(z => z.url === v.url) === i).slice(0, 12);
+      return {
+        id: Number(x.id),
+        title,
+        romaji: String(x.title?.romaji || ""),
+        native: String(x.title?.native || ""),
+        poster: String(x.coverImage?.extraLarge || x.coverImage?.large || ""),
+        banner: String(x.bannerImage || ""),
+        color: String(x.coverImage?.color || ""),
+        year: Number(x.seasonYear || 0),
+        format: String(x.format || ""),
+        episodes: Number(x.episodes || 0),
+        duration: Number(x.duration || 0),
+        genres: Array.isArray(x.genres) ? x.genres.slice(0,4) : [],
+        score: Number(x.averageScore || 0),
+        status: String(x.status || ""),
+        sources: streamLinks
+      };
+    }).slice(0,12);
+    res.json({ query: q, count: items.length, items });
+  } catch (error) {
+    res.status(502).json({ error: error?.name === "AbortError" ? "AniList отвечает слишком долго" : "Не удалось выполнить поиск аниме" });
+  } finally {
+    clearTimeout(timer);
+  }
+});
+
 // Rooms
 app.get("/api/my-rooms", requireAuth, (req, res) => {
   const rooms = db.rooms.filter(r => r.members.includes(req.user.id)).map(r => ({
