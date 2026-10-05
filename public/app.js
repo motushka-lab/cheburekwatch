@@ -54,6 +54,7 @@ function cwJoke(){return CW_JOKES[Math.floor(Math.random()*CW_JOKES.length)]}
 
 const SITE_ASSETS={
   heroVideo:"/site-assets/hero/main-intro.mp4",
+  heroDesktop:"/site-assets/hero/main-intro-desktop.mp4",
   heroFinal:"/site-assets/hero/main-intro-final.jpg",
   photos:[
     "/site-assets/photo/unnamed-3.webp",
@@ -81,19 +82,53 @@ function easterPhotoHtml(index,className=""){
   return `<figure class="archive-easter ${className}" aria-hidden="true"><img src="${archivePhoto(index)}" alt="" loading="lazy"><span>${String(index+1).padStart(2,"0")}</span></figure>`;
 }
 function photoGradientBandHtml(){
-  return `<section class="new-photo-gradient" aria-label="Фотоархив CheburekWatch">
-    <div class="new-photo-gradient-copy"><span>CHAPTER / ARCHIVE</span><b>ШЕСТЬ КАДРОВ. ОДНА СТРАННАЯ ИСТОРИЯ.</b></div>
-    <div class="new-photo-gradient-track">
-      ${SITE_ASSETS.photos.map((src,i)=>`<figure style="--i:${i}"><img src="${src}" alt="" loading="lazy"><i>${String(i+1).padStart(2,"0")}</i></figure>`).join("")}
+  return `<section class="archive-carousel" aria-label="Фотоархив CheburekWatch">
+    <div class="archive-carousel-head container">
+      <div class="new-photo-gradient-copy"><span>CHAPTER / ARCHIVE</span><b>ШЕСТЬ КАДРОВ. ДУМАЛ, ЭТО ПРОСТО АРХИВ? ЛИСТАЙ ДАЛЬШЕ.</b></div>
+      <div class="archive-carousel-ui"><span class="archive-carousel-count"><b id="archiveCarouselCurrent">01</b> / 06</span><div class="archive-carousel-controls"><button class="btn btn-icon" id="archivePrev" type="button" aria-label="Предыдущий кадр">${cwIcon("back",17)}</button><button class="btn btn-icon" id="archiveNext" type="button" aria-label="Следующий кадр">${cwIcon("arrow",17)}</button></div></div>
+    </div>
+    <div class="archive-carousel-viewport" id="archiveCarousel" tabindex="0">
+      <div class="archive-carousel-track">
+        ${SITE_ASSETS.photos.map((src,i)=>`<figure class="archive-slide" data-slide="${i}"><img src="${src}" alt="Кадр ${i+1}" loading="lazy" decoding="async"><i>${String(i+1).padStart(2,"0")}</i></figure>`).join("")}
+      </div>
     </div>
   </section>`;
+}
+function setupArchiveCarousel(){
+  const viewport=$("#archiveCarousel");
+  if(!viewport)return;
+  const slides=[...viewport.querySelectorAll(".archive-slide")];
+  const current=$("#archiveCarouselCurrent");
+  const update=()=>{
+    if(!slides.length)return;
+    const center=viewport.scrollLeft+viewport.clientWidth/2;
+    let best=0,dist=Infinity;
+    slides.forEach((slide,i)=>{
+      const d=Math.abs((slide.offsetLeft+slide.offsetWidth/2)-center);
+      if(d<dist){dist=d;best=i}
+    });
+    if(current)current.textContent=String(best+1).padStart(2,"0");
+  };
+  const step=dir=>{
+    const card=slides[0];
+    const amount=(card?.getBoundingClientRect().width||280)+14;
+    viewport.scrollBy({left:dir*amount,behavior:"smooth"});
+  };
+  $("#archivePrev")?.addEventListener("click",()=>step(-1));
+  $("#archiveNext")?.addEventListener("click",()=>step(1));
+  viewport.addEventListener("scroll",()=>requestAnimationFrame(update),{passive:true});
+  viewport.addEventListener("keydown",e=>{
+    if(e.key==="ArrowRight"){e.preventDefault();step(1)}
+    if(e.key==="ArrowLeft"){e.preventDefault();step(-1)}
+  });
+  update();
 }
 function ambientVideoStripHtml(){
   const posters=[SITE_ASSETS.photos[1],SITE_ASSETS.photos[3],SITE_ASSETS.photos[5]];
   return `<section class="motion-archive container">
-    <div class="section-head motion-head"><div><span class="eyebrow">АКТ II · ДВИЖЕНИЕ</span><h2>ЖИВЫЕ ПАНЕЛИ</h2></div><p>Три фрагмента появляются как манга-панели и оживают только тогда, когда вы до них доходите.</p></div>
+    <div class="section-head motion-head"><div><span class="eyebrow">АКТ II · СЛЕДУЮЩИЙ ХОД</span><h2>ПОДОЙДИ БЛИЖЕ К КАДРУ</h2></div><p>Каждый фрагмент ждёт своего момента. Не спешите: иногда пауза — это тоже часть стратегии.</p></div>
     <div class="motion-grid">
-      ${SITE_ASSETS.videos.map((src,i)=>`<article class="motion-card motion-card-${i+1}"><video class="ambient-video" src="${src}" poster="${posters[i]}" muted playsinline loop preload="metadata"></video><div><span>0${i+1}</span><b>${["ПЕРВЫЙ УДАР","ВТОРОЙ КАДР","ФИНАЛЬНЫЙ ПОВОРОТ"][i]}</b></div></article>`).join("")}
+      ${SITE_ASSETS.videos.map((src,i)=>`<article class="motion-card motion-card-${i+1}"><video class="ambient-video" src="${src}" poster="${posters[i]}" muted playsinline loop preload="metadata"></video><div><span>0${i+1}</span><b>${["ПЕРВЫЙ ХОД","КАДР ОТВЕЧАЕТ","ПОСЛЕДНИЙ АРГУМЕНТ"][i]}</b></div></article>`).join("")}
     </div>
   </section>`;
 }
@@ -115,9 +150,32 @@ function setupAmbientVideos(){
 function setupMainHeroVideo(){
   const v=document.querySelector("#mainHeroVideo");
   if(!v)return;
+  const desktop=window.matchMedia?.("(min-width: 901px)")?.matches;
   const reduced=window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
   const key="cw-main-intro-played";
-  if(reduced || sessionStorage.getItem(key)==="1"){v.replaceWith(Object.assign(document.createElement("img"),{className:"hero-image hero-final-frame",src:SITE_ASSETS.heroFinal,alt:""}));return}
+  const seen=sessionStorage.getItem(key)==="1";
+
+  const holdLastFrame=()=>{
+    const seek=()=>{
+      if(Number.isFinite(v.duration) && v.duration>.08){
+        try{v.currentTime=Math.max(0,v.duration-.05)}catch{}
+      }
+      v.pause();
+      v.closest(".hero")?.classList.add("hero-video-ended");
+    };
+    if(v.readyState>=1)seek();else v.addEventListener("loadedmetadata",seek,{once:true});
+  };
+
+  if(desktop){
+    if(v.getAttribute("src")!==SITE_ASSETS.heroDesktop){v.src=SITE_ASSETS.heroDesktop;v.load()}
+    if(reduced||seen){holdLastFrame();return}
+  }else{
+    if(reduced||seen){
+      v.replaceWith(Object.assign(document.createElement("img"),{className:"hero-image hero-final-frame",src:SITE_ASSETS.heroFinal,alt:""}));
+      return;
+    }
+  }
+
   const start=()=>{
     if(sessionStorage.getItem(key)==="1")return;
     sessionStorage.setItem(key,"1");
@@ -125,15 +183,10 @@ function setupMainHeroVideo(){
     v.currentTime=0;
     v.play().catch(()=>sessionStorage.removeItem(key));
   };
-  v.addEventListener("ended",()=>{
-    v.pause();
-    if(Number.isFinite(v.duration) && v.duration>.05){try{v.currentTime=v.duration-.04}catch{}}
-    v.closest(".hero")?.classList.add("hero-video-ended");
-  },{once:true});
+  v.addEventListener("ended",holdLastFrame,{once:true});
   if(document.querySelector(".intro"))window.addEventListener("cw:intro-finished",start,{once:true});
   else start();
 }
-
 
 async function api(url, options={}) {
   const headers={"Content-Type":"application/json", ...(options.headers||{})};
@@ -337,15 +390,19 @@ async function landingPage(){
     : `<section class="section container room-preview-section"><div class="section-head"><div><span class="eyebrow">СИНХРОННАЯ АРКА</span><h2>ЗДЕСЬ НАЧНЁТСЯ ВАША ИСТОРИЯ</h2></div></div>
        <div class="empty-state"><div class="empty-projector"><i></i><span></span></div><span class="eyebrow">ПУСТОЙ КАДР</span><h3>ПЕРВАЯ ГЛАВА ЕЩЁ НЕ ОТКРЫТА</h3><p>Войдите, откройте комнату и дайте друзьям код. Дальше сюжет разберётся сам.</p><a class="btn btn-primary" href="/login" data-nav>Войти</a></div>${easterPhotoHtml(4,"archive-room-peek")}</section>`;
 
-  const heroMedia=sessionStorage.getItem("cw-main-intro-played")==="1"
-    ? `<img class="hero-image hero-final-frame" src="${SITE_ASSETS.heroFinal}" alt="">`
-    : `<video id="mainHeroVideo" class="hero-image hero-main-video" src="${SITE_ASSETS.heroVideo}" poster="${SITE_ASSETS.heroFinal}" muted playsinline preload="auto"></video>`;
+  const desktopHero=window.matchMedia?.("(min-width: 901px)")?.matches;
+  const heroSeen=sessionStorage.getItem("cw-main-intro-played")==="1";
+  const heroMedia=desktopHero
+    ? `<video id="mainHeroVideo" class="hero-image hero-main-video hero-main-video-desktop" src="${SITE_ASSETS.heroDesktop}" poster="${SITE_ASSETS.heroFinal}" muted playsinline preload="auto"></video>`
+    : heroSeen
+      ? `<img class="hero-image hero-final-frame" src="${SITE_ASSETS.heroFinal}" alt="">`
+      : `<video id="mainHeroVideo" class="hero-image hero-main-video" src="${SITE_ASSETS.heroVideo}" poster="${SITE_ASSETS.heroFinal}" muted playsinline preload="auto"></video>`;
 
   shell(`<main>
     <section class="hero archive-hero">${heroMedia}<div class="hero-overlay"></div>
       <div class="hero-archive-stack" aria-hidden="true"><span style="background-image:url('${archivePhoto(3)}')"></span><span style="background-image:url('${archivePhoto(1)}')"></span></div>
-      <div class="container hero-content reveal"><span class="hero-kicker"><i></i> АКТ I · СИНХРОН АКТИВИРУЕТСЯ</span><h1>ОДИН КАДР.<br><em>ОДНА ВОЛЯ.</em></h1>
-      <p>Запускайте фильм одновременно, держите общий ритм и превращайте обычный просмотр в свою безумную экранную арку.</p>
+      <div class="container hero-content reveal"><span class="hero-kicker"><i></i> АКТ I · СУДЬБА УЖЕ НАЖАЛА PLAY</span><h1>ТЫ ДУМАЛ, ЭТО ПРОСТО КИНО?<br><em>ЭТО ВАША АРКА.</em></h1>
+      <p>Подойдите ближе к экрану. Один нажимает Play — и вся компания вступает в ту же секунду. Следующий ход уже общий.</p>
       <div class="hero-actions"><button class="btn btn-primary" data-create>${cwIcon("play")}<span class="btn-label">ОТКРЫТЬ КОМНАТУ</span></button><a class="btn btn-secondary" href="${me?"/rooms":"/login"}" data-nav>ВОЙТИ ПО КОДУ ${cwIcon("arrow")}</a></div></div>
       ${easterPhotoHtml(0,"archive-hero-easter")}
     </section>
@@ -353,12 +410,13 @@ async function landingPage(){
     ${roomSection}
     ${ambientVideoStripHtml()}
     <section class="manifesto archive-manifesto"><div class="container manifesto-grid"><div class="manifesto-image"><img src="${archivePhoto(5)}" alt=""><span>ОДИН ЭКРАН<br>НА ВСЕХ</span>${easterPhotoHtml(2,"archive-manifesto-easter")}</div>
-      <div class="manifesto-copy"><span class="eyebrow">АКТ III · БЕЗ РАССТОЯНИЙ</span><h2>КАЖДЫЙ КАДР —<br>ОБЩИЙ УДАР ПО ТАЙМЛАЙНУ.</h2>
+      <div class="manifesto-copy"><span class="eyebrow">АКТ III · НИКАКИХ ПАРАЛЛЕЛЬНЫХ МИРОВ</span><h2>СИНХРОН — НЕ УДОБСТВО.<br>ЭТО ПОЗИЦИЯ.</h2>
       <div class="feature-list"><div><b>01</b><span><strong>СИНХРОН БЕЗ КОМПРОМИССОВ</strong>Пауза, перемотка и продолжение происходят вместе — никаких параллельных реальностей.</span></div><div><b>02</b><span><strong>РЕПЛИКИ НЕ ПРОПАДАЮТ</strong>РЕПЛИКИ и реакции живут рядом с экраном, как комментарии на полях манги.</span></div><div><b>03</b><span><strong>КОД ДЛЯ СВОИХ</strong>Один код — и ваша компания уже внутри этой главы.</span></div></div></div></div></section>
-    <section class="club-notes container archive-notes"><div class="club-note-copy"><span class="eyebrow">ЛИЧНАЯ АРКА</span><h2>СМОТРИТЕ ДАЛЬШЕ.<br>УСИЛИВАЙТЕ ХРОНИКУ.</h2><p>Уровень, минуты и знаки отличия растут только из реальных совместных просмотров.</p></div>
+    <section class="club-notes container archive-notes"><div class="club-note-copy"><span class="eyebrow">ЛИЧНАЯ АРКА</span><h2>СУДЬБА СЧИТАЕТ МИНУТЫ.<br>ВЫ — СМОТРИТЕ ДАЛЬШЕ.</h2><p>Уровень, минуты и знаки отличия растут только из реальных совместных просмотров.</p></div>
       <div class="club-collage archive-collage"><img src="${archivePhoto(0)}" alt=""><img src="${archivePhoto(4)}" alt=""><img src="${archivePhoto(2)}" alt=""><span class="ticket">CHEBUREK<br><small>WATCH PARTY</small></span>${easterPhotoHtml(5,"archive-note-easter")}</div></section>
   </main>`);
   setupMainHeroVideo();
+  setupArchiveCarousel();
   setupAmbientVideos();
   document.querySelectorAll("[data-open]").forEach(b=>b.addEventListener("click",async()=>{b.disabled=true;try{await api(`/api/rooms/${b.dataset.open}/join`,{method:"POST"});navigate("/room/"+b.dataset.open)}catch(e){toast(e.message);b.disabled=false}}));
 }
@@ -376,9 +434,9 @@ function shell(content,opts={}){
 
 function mountCinemaIntro(){}
 function authPage(mode){
-  shell(`<main class="auth-page"><div class="auth-visual archive-auth-visual"><img src="${archivePhoto(3)}" alt=""><div class="auth-visual-film"><video class="ambient-video" src="${SITE_ASSETS.videos[1]}" poster="${archivePhoto(3)}" muted playsinline loop preload="metadata"></video></div><div class="auth-quote"><span>СЕАНС / CHEBUREK</span><h2>Истории становятся<br>настоящими, когда<br>ими делятся.</h2></div>${easterPhotoHtml(1,"archive-auth-easter")}</div>
+  shell(`<main class="auth-page"><div class="auth-visual archive-auth-visual"><img src="${archivePhoto(3)}" alt=""><div class="auth-visual-film"><video class="ambient-video" src="${SITE_ASSETS.videos[1]}" poster="${archivePhoto(3)}" muted playsinline loop preload="metadata"></video></div><div class="auth-quote"><span>СЕАНС / CHEBUREK</span><h2>ВЫ УЖЕ ВОШЛИ<br>В ИСТОРИЮ.<br>ОСТАЛОСЬ ВОЙТИ В АККАУНТ.</h2></div>${easterPhotoHtml(1,"archive-auth-easter")}</div>
     <div class="auth-form-wrap"><div class="auth-mobile-logo">${logoHtml()}</div><a class="btn btn-ghost auth-back" href="/" data-nav>${cwIcon("back")}На главную</a>
-      <form class="auth-form" id="authform"><span class="eyebrow">${mode==="login"?"ВОЗВРАЩЕНИЕ ГЕРОЯ":"НОВАЯ ГЛАВА"}</span><h1>${mode==="login"?"ПРОДОЛЖИМ ЭТУ ИСТОРИЮ?":"ВЫБЕРИТЕ СВОЮ ПОЗИЦИЮ"}</h1><p>${mode==="login"?"Вернитесь в свою хронику или ворвитесь прямо в комнату по коду.":"Создайте профиль — это будет ваша личная линия в общей экранной истории."}</p>
+      <form class="auth-form" id="authform"><span class="eyebrow">${mode==="login"?"ВОЗВРАЩЕНИЕ ГЕРОЯ":"НОВАЯ ГЛАВА"}</span><h1>${mode==="login"?"СЛЕДУЮЩИЙ ХОД ЗА ВАМИ.":"ВЫБЕРИТЕ СВОЮ РОЛЬ В ЭТОЙ ГЛАВЕ"}</h1><p>${mode==="login"?"Вернитесь в свою хронику или ворвитесь прямо в комнату по коду.":"Создайте профиль — это будет ваша личная линия в общей экранной истории."}</p>
       <div class="auth-tabs"><a class="btn btn-ghost ${mode==="login"?"active":""}" href="/login" data-nav>Вход</a><a class="btn btn-ghost ${mode==="register"?"active":""}" href="/register" data-nav>Регистрация</a></div>
       <label class="field"><span>Никнейм</span><input id="nick" autocomplete="username" maxlength="24" placeholder="Как вас называть?" required></label>
       <label class="field"><span>Пароль</span><input id="pass" type="password" autocomplete="${mode==="login"?"current-password":"new-password"}" minlength="8" placeholder="Не менее 8 символов" required></label>
@@ -393,7 +451,7 @@ function authPage(mode){
 
 async function roomsPage(){
   const d=await api("/api/my-rooms");
-  shell(`<main class="page container rooms-archive-page"><div class="browse-top reveal"><div><span class="eyebrow">ВАШИ ГЛАВЫ</span><h1>ВЫБЕРИТЕ ГЛАВУ</h1><p>Никаких декораций: здесь только реальные комнаты, к которым у вас есть доступ.</p></div><button class="btn btn-primary" data-create>${cwIcon("plus")}<span class="btn-label">НОВАЯ ГЛАВА</span></button></div>
+  shell(`<main class="page container rooms-archive-page"><div class="browse-top reveal"><div><span class="eyebrow">ВАШИ ГЛАВЫ</span><h1>ВЫБЕРИТЕ СЛЕДУЮЩИЙ ХОД</h1><p>Никаких декораций: здесь только реальные комнаты, к которым у вас есть доступ.</p></div><button class="btn btn-primary" data-create>${cwIcon("plus")}<span class="btn-label">НОВАЯ ГЛАВА</span></button></div>
     <div class="filter-row real-room-search"><label class="search-box">${cwIcon("search")}<input id="roomSearch" placeholder="Найти главу или ввести код"></label></div>
     <div id="roomsGrid" class="rooms-grid browse-grid">${d.rooms.length?d.rooms.map((r,n)=>roomCardHtml(r,n)).join(""):emptyStateHtml()}</div>
     <aside class="rooms-archive-easters">${easterPhotoHtml(1,"rooms-peek-a")}${easterPhotoHtml(3,"rooms-peek-b")}${easterPhotoHtml(5,"rooms-peek-c")}</aside>
@@ -422,7 +480,7 @@ async function profilePage(){
 }
 
 function playerHtml(media){
-  if(!media)return `<div class="emptyvideo"><img src="${archivePhoto(1)}" alt=""><div class="emptyvideo-shade"></div><div class="emptyvideo-copy"><span>КАДР ЕЩЁ НЕ ВЫБРАН</span><b>ЭКРАН ЖДЁТ СВОЮ ГЛАВУ</b><small>Откройте «СМЕНИТЬ КИНО» и дайте комнате источник: YouTube, VK Video или прямой файл.</small></div></div>`;
+  if(!media)return `<div class="emptyvideo"><img src="${archivePhoto(1)}" alt=""><div class="emptyvideo-shade"></div><div class="emptyvideo-copy"><span>КАДР ЕЩЁ НЕ ВЫБРАН</span><b>ДАЖЕ ПУСТОЙ ЭКРАН ЖДЁТ СВОЕГО ХОДА</b><small>Откройте «СМЕНИТЬ КИНО» и дайте комнате источник: YouTube, VK Video или прямой файл.</small></div></div>`;
   if(media.type==="youtube")return `<div class="player-frame yt-stage" id="yt"><div class="player-loading">Подключаем видео…</div></div>`;
   if(media.type==="vk")return `<iframe class="player-frame" id="vkframe" allow="autoplay; encrypted-media; fullscreen; picture-in-picture" allowfullscreen src="${esc(media.url)}"></iframe>`;
   return `<video class="player-frame" id="htmlvideo" playsinline preload="metadata" controls src="${esc(media.url)}"></video>`;
