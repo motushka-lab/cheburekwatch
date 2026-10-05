@@ -148,8 +148,8 @@ h1, h2, h3, p { margin: 0; }
 .player-controls { min-height: 62px; display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-bottom: 1px solid var(--line); background: var(--coal); }
 .player-controls .btn-icon { border: 0; background: transparent; }
 .timeline { position: relative; height: 3px; flex: 1; margin-left: 8px; background: #3b3b36; }
-.timeline i { position: absolute; width: 35%; height: 100%; background: var(--accent); }
-.timeline span { position: absolute; left: 35%; top: 50%; width: 9px; height: 9px; border-radius: 50%; background: var(--paper); transform: translate(-50%,-50%); }
+.timeline i { position: absolute; width: var(--cw-progress, 0%); height: 100%; background: var(--accent); transition: width .18s linear; }
+.timeline span { position: absolute; left: var(--cw-progress, 0%); top: 50%; width: 9px; height: 9px; border-radius: 50%; background: var(--paper); transform: translate(-50%,-50%); transition: left .18s linear; }
 .time { color: var(--muted); font-size: 9px; white-space: nowrap; }
 .under-player { min-height: 80px; display: flex; align-items: center; justify-content: space-between; gap: 18px; padding-top: 16px; }
 .under-player h3 { font-size: 18px; }
