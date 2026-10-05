@@ -3,6 +3,7 @@ const bcrypt = require("bcryptjs");
 const crypto = require("crypto");
 const fs = require("fs");
 const path = require("path");
+const { telegramRequest } = require("./lib/telegram-request");
 
 const app = express();
 const PORT = Number(process.env.PORT || 3000);
@@ -19,6 +20,10 @@ const TELEGRAM_BOT_TOKEN = String(process.env.TELEGRAM_BOT_TOKEN || "").trim();
 const TELEGRAM_ADMIN_ID = String(process.env.TELEGRAM_ADMIN_ID || "").trim();
 const TELEGRAM_BOT_API_BASE = String(process.env.TELEGRAM_BOT_API_BASE || "https://api.telegram.org").replace(/\/$/,"");
 const TELEGRAM_OFFICIAL_FILE_LIMIT = 20 * 1024 * 1024;
+const TELEGRAM_USING_OFFICIAL = new URL(TELEGRAM_BOT_API_BASE).origin === "https://api.telegram.org";
+const TELEGRAM_LOCAL_DIR = path.resolve(process.env.TELEGRAM_LOCAL_DIR || path.join(DATA_DIR, "telegram"));
+const TELEGRAM_FILE_TIMEOUT_MS = TELEGRAM_USING_OFFICIAL ? 12000 : 30 * 60 * 1000;
+const telegramFileRequests = new Map();
 
 const SITE_MEDIA_TARS = [
   "cw-media-a.tar",
@@ -164,6 +169,7 @@ function upsertAnimeLibraryEntry(entry) {
     url: entry.url || null,
     telegramFileId: entry.telegramFileId || null,
     telegramFileUniqueId: entry.telegramFileUniqueId || null,
+    localFilePath: entry.localFilePath || null,
     fileSize: Number(entry.fileSize || 0),
     mimeType: String(entry.mimeType || "video/mp4").slice(0,120),
     fileName: String(entry.fileName || "episode.mp4").slice(0,180),
@@ -186,21 +192,11 @@ function parseAnimeBotMeta(raw, needsUrl=false) {
 }
 async function telegramApi(method, body={}, timeoutMs=35000) {
   if (!TELEGRAM_BOT_TOKEN) throw new Error("Telegram bot token is not configured");
-  const controller = new AbortController();
-  const timer = setTimeout(()=>controller.abort(), timeoutMs);
-  try {
-    const response = await fetch(`${TELEGRAM_BOT_API_BASE}/bot${TELEGRAM_BOT_TOKEN}/${method}`, {
-      method:"POST",
-      signal:controller.signal,
-      headers:{"Content-Type":"application/json"},
-      body:JSON.stringify(body)
-    });
-    const data = await response.json();
-    if (!response.ok || !data.ok) throw new Error(String(data?.description || `Telegram ${method} failed`));
-    return data.result;
-  } finally {
-    clearTimeout(timer);
-  }
+  return telegramRequest(`${TELEGRAM_BOT_API_BASE}/bot${TELEGRAM_BOT_TOKEN}/${method}`, body, timeoutMs);
+}
+function telegramErrorMessage(error) {
+  const message = String(error?.message || error);
+  return TELEGRAM_BOT_TOKEN ? message.split(TELEGRAM_BOT_TOKEN).join("[redacted]") : message;
 }
 async function telegramSay(chatId, text) {
   try {
@@ -210,7 +206,7 @@ async function telegramSay(chatId, text) {
       disable_web_page_preview:true
     }, 12000);
   } catch (e) {
-    console.warn("Telegram sendMessage failed:", e.message);
+    console.warn("Telegram sendMessage failed:", telegramErrorMessage(e));
   }
 }
 function telegramIsAdmin(message) {
@@ -237,6 +233,8 @@ ${setup}
 2) Видео/документ: отправьте файл с подписью Название | номер серии
 3) /list — последние записи
 4) /delete Название | номер серии
+
+${TELEGRAM_USING_OFFICIAL ? "Файлы до 20 МБ. Для больших файлов включите Local Bot API." : "Подключён Local Bot API. Большие файлы сначала скачиваются на сервер; дождитесь сообщения «Сохранено»."}
 
 Используйте только видео и ссылки, которыми вы имеете право делиться.`);
     return;
@@ -276,12 +274,11 @@ ${setup}
     const meta = parseAnimeBotMeta(message.caption || "", false);
     if (!meta) return telegramSay(chatId,"Подпись к файлу должна быть: Название | номер серии");
     const size = Number(media.file_size || 0);
-    const usingOfficial = /^https:\/\/api\.telegram\.org$/i.test(TELEGRAM_BOT_API_BASE);
-    if (usingOfficial && size > TELEGRAM_OFFICIAL_FILE_LIMIT) {
+    if (TELEGRAM_USING_OFFICIAL && size > TELEGRAM_OFFICIAL_FILE_LIMIT) {
       return telegramSay(chatId,
 `Файл ${Math.round(size/1024/1024)} МБ слишком большой для обычного Telegram Bot API: он позволяет боту скачать только до 20 МБ. Для полной серии лучше пришлите прямую ссылку на разрешённый видеофайл. Поддержку Local Bot API для больших файлов можно включить отдельно.`);
     }
-    const item = upsertAnimeLibraryEntry({
+    const entry = {
       title:meta.title,
       episode:meta.episode,
       kind:"telegram",
@@ -290,7 +287,25 @@ ${setup}
       fileSize:size,
       mimeType:String(media.mime_type || "video/mp4"),
       fileName:String(media.file_name || `episode-${meta.episode}.mp4`)
-    });
+    };
+    if (!TELEGRAM_USING_OFFICIAL) {
+      try {
+        if (process.env.TELEGRAM_LOCAL_API === "true") {
+          const disk = await fs.promises.statfs(TELEGRAM_LOCAL_DIR);
+          const available = Number(disk.bavail) * Number(disk.bsize);
+          if (available < size + 256 * 1024 * 1024) {
+            return telegramSay(chatId, `Недостаточно места на диске для файла ${Math.ceil(size/1024/1024)} МБ. Освободите место или увеличьте диск Render и отправьте файл повторно.`);
+          }
+        }
+        await telegramSay(chatId, `Получено: ${meta.title} — серия ${meta.episode} (${Math.ceil(size/1024/1024)} МБ). Скачиваю на сервер; дождитесь подтверждения.`);
+        const filePath = await resolveTelegramFile(entry);
+        if (path.isAbsolute(filePath)) entry.localFilePath = filePath;
+      } catch (error) {
+        console.warn("Telegram library download failed:", telegramErrorMessage(error));
+        return telegramSay(chatId, "Не удалось подготовить видео. Проверьте Local Bot API и свободное место на диске, затем отправьте файл повторно. Запись не добавлена.");
+      }
+    }
+    const item = upsertAnimeLibraryEntry(entry);
     return telegramSay(chatId,`Сохранено: ${item.title} — серия ${item.episode}. Теперь она доступна на сайте.`);
   }
 
@@ -318,8 +333,9 @@ async function startTelegramBot() {
     const me = await telegramApi("getMe",{},12000);
     console.log(`Telegram library bot ready: @${me?.username || "bot"}`);
   } catch(e) {
-    console.warn("Telegram bot could not start:", e.message);
+    console.warn("Telegram bot could not start:", telegramErrorMessage(e));
     telegramPolling = false;
+    setTimeout(() => startTelegramBot().catch(() => {}), 5000).unref();
     return;
   }
   while (telegramPolling) {
@@ -332,19 +348,45 @@ async function startTelegramBot() {
       for (const update of Array.isArray(updates)?updates:[]) {
         telegramUpdateOffset = Math.max(telegramUpdateOffset, Number(update.update_id || 0) + 1);
         try { await handleTelegramMessage(update.message); }
-        catch(e) { console.warn("Telegram update failed:", e.message); }
+        catch(e) { console.warn("Telegram update failed:", telegramErrorMessage(e)); }
       }
     } catch(e) {
       if (!telegramPolling) break;
-      console.warn("Telegram polling:", e.message);
+      console.warn("Telegram polling:", telegramErrorMessage(e));
       await new Promise(r=>setTimeout(r,2500));
     }
   }
 }
+async function checkLocalTelegramFile(filePath) {
+  const [root, file] = await Promise.all([
+    fs.promises.realpath(TELEGRAM_LOCAL_DIR), fs.promises.realpath(filePath)
+  ]);
+  const relative = path.relative(root, file);
+  if (!relative || relative === ".." || relative.startsWith(`..${path.sep}`) || path.isAbsolute(relative)) {
+    throw new Error("Telegram file is outside the configured media directory");
+  }
+  const stat = await fs.promises.stat(file);
+  if (!stat.isFile()) throw new Error("Telegram path is not a media file");
+  return file;
+}
 async function resolveTelegramFile(entry) {
-  const file = await telegramApi("getFile",{file_id:entry.telegramFileId},12000);
+  if (entry.localFilePath) {
+    try { return await checkLocalTelegramFile(entry.localFilePath); }
+    catch { /* The cache may have been cleared; resolve again through Telegram. */ }
+  }
+  const key = entry.telegramFileId;
+  if (telegramFileRequests.has(key)) return telegramFileRequests.get(key);
+  const pending = fetchTelegramFile(entry);
+  telegramFileRequests.set(key, pending);
+  try { return await pending; }
+  finally { telegramFileRequests.delete(key); }
+}
+async function fetchTelegramFile(entry) {
+  const file = await telegramApi("getFile",{file_id:entry.telegramFileId},TELEGRAM_FILE_TIMEOUT_MS);
   const filePath = String(file?.file_path || "");
   if (!filePath) throw new Error("Telegram не вернул путь к файлу");
+  if (path.isAbsolute(filePath)) return checkLocalTelegramFile(filePath);
+  if (process.env.TELEGRAM_LOCAL_API === "true") throw new Error("Local Bot API did not return a local file");
   return filePath;
 }
 
@@ -1199,28 +1241,14 @@ app.get("/api/library/telegram/:entryId/:name", requireAuth, async (req, res) =>
     const filePath = await resolveTelegramFile(entry);
     res.setHeader("Content-Type", entry.mimeType || "video/mp4");
     res.setHeader("Cache-Control","private, max-age=300");
-    res.setHeader("Content-Disposition", `inline; filename="${String(entry.fileName || "episode.mp4").replace(/["\\]/g,"_")}"`);
+    res.setHeader("Content-Disposition", `inline; filename="episode.mp4"; filename*=UTF-8''${encodeURIComponent(entry.fileName || "episode.mp4").replace(/'/g,"%27")}`);
 
-    if (path.isAbsolute(filePath) && fs.existsSync(filePath)) {
-      const stat = fs.statSync(filePath);
-      const range = String(req.headers.range || "");
-      if (range) {
-        const m = range.match(/bytes=(\d*)-(\d*)/);
-        const start = m && m[1] ? Number(m[1]) : 0;
-        const end = m && m[2] ? Math.min(Number(m[2]), stat.size-1) : stat.size-1;
-        if (!Number.isFinite(start) || start<0 || start>=stat.size || end<start) {
-          res.status(416).setHeader("Content-Range",`bytes */${stat.size}`);
-          return res.end();
-        }
-        res.status(206);
-        res.setHeader("Accept-Ranges","bytes");
-        res.setHeader("Content-Range",`bytes ${start}-${end}/${stat.size}`);
-        res.setHeader("Content-Length",String(end-start+1));
-        return fs.createReadStream(filePath,{start,end}).pipe(res);
-      }
-      res.setHeader("Content-Length",String(stat.size));
-      res.setHeader("Accept-Ranges","bytes");
-      return fs.createReadStream(filePath).pipe(res);
+    if (path.isAbsolute(filePath)) {
+      return res.sendFile(filePath, { cacheControl:false }, error => {
+        if (!error || res.destroyed) return;
+        if (!res.headersSent) res.status(error.statusCode || 502).end();
+        else res.destroy();
+      });
     }
 
     const fileUrl = `${TELEGRAM_BOT_API_BASE}/file/bot${TELEGRAM_BOT_TOKEN}/${filePath.replace(/^\/+/, "")}`;
@@ -1246,7 +1274,7 @@ app.get("/api/library/telegram/:entryId/:name", requireAuth, async (req, res) =>
     }
     res.end();
   } catch(e) {
-    console.warn("Telegram media proxy failed:", e.message);
+    console.warn("Telegram media proxy failed:", telegramErrorMessage(e));
     if (!res.headersSent) res.status(502).end();
     else res.end();
   }
@@ -1494,7 +1522,7 @@ app.get("*", (req, res) => res.sendFile(path.join(__dirname, "public", "index.ht
 
 const server = app.listen(PORT, HOST, () => {
   console.log(`CheburekWatch listening on ${HOST}:${PORT}`);
-  startTelegramBot().catch(e=>console.warn("Telegram bot start failed:",e.message));
+  startTelegramBot().catch(e=>console.warn("Telegram bot start failed:",telegramErrorMessage(e)));
 });
 
 function shutdown(signal) {

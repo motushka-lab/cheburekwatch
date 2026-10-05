@@ -6,7 +6,9 @@
 
 Проект является полноценным Node.js/Express-приложением. GitHub используется для хранения исходников и CI, а само приложение запускается как Node.js Web Service.
 
-Для публичного запуска подготовлен `render.yaml`: он создаёт Web Service и подключает persistent disk для `data/db.json`. Это нужно потому, что приложение хранит пользователей, сессии, комнаты и сообщения в файловой базе.
+Для публичного запуска подготовлен `render.yaml`: Docker Web Service запускает сайт и официальный Local Telegram Bot API на общем persistent disk. База находится в `/var/data/db.json`, Telegram-файлы — в `/var/data/telegram`.
+
+**Большие серии через Telegram:** [переход существующего Render-сервиса и настройка секретов](TELEGRAM_LARGE_FILES.md). Конфигурация предполагает 2 ГБ памяти и диск 20 ГБ; применение увеличивает оплату Render.
 
 GitHub Pages для этого проекта не подходит: Pages не запускает Node.js/Express API и SSE.
 
@@ -39,7 +41,7 @@ http://localhost:3000/health
 2. Загрузи содержимое этого проекта в ветку `main`.
 3. В Render создай Blueprint из этого репозитория.
 4. Render использует `render.yaml`.
-5. Будет создан Node.js Web Service с командой `npm ci` и `npm start`.
+5. Будет создан Docker Web Service. Укажи `TELEGRAM_BOT_TOKEN`, `TELEGRAM_ADMIN_ID`, `TELEGRAM_API_ID` и `TELEGRAM_API_HASH` в Environment; контейнер запускает оба процесса.
 6. Каталог `/var/data` будет подключён как persistent disk и передан приложению через `DATA_DIR=/var/data`.
 7. После deploy сайт будет доступен по адресу `https://<имя-сервиса>.onrender.com`.
 
