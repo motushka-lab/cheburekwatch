@@ -55,6 +55,7 @@ function cwJoke(){return CW_JOKES[Math.floor(Math.random()*CW_JOKES.length)]}
 const SITE_ASSETS={
   heroVideo:"/site-assets/hero/main-intro.mp4",
   heroDesktop:"/site-assets/hero/main-intro-desktop.mp4",
+  heroDesktopFinal:"/site-assets/hero/main-intro-desktop-final.jpg",
   heroFinal:"/site-assets/hero/main-intro-final.jpg",
   photos:[
     "/site-assets/photo/unnamed-3.webp",
@@ -116,6 +117,12 @@ function setupArchiveCarousel(){
   };
   $("#archivePrev")?.addEventListener("click",()=>step(-1));
   $("#archiveNext")?.addEventListener("click",()=>step(1));
+  let dragging=false,startX=0,startScroll=0;
+  viewport.addEventListener("pointerdown",e=>{if(e.pointerType==="touch")return;dragging=true;startX=e.clientX;startScroll=viewport.scrollLeft;viewport.setPointerCapture?.(e.pointerId);viewport.classList.add("is-dragging")});
+  viewport.addEventListener("pointermove",e=>{if(!dragging)return;viewport.scrollLeft=startScroll-(e.clientX-startX)});
+  const stopDrag=e=>{if(!dragging)return;dragging=false;viewport.releasePointerCapture?.(e.pointerId);viewport.classList.remove("is-dragging");update()};
+  viewport.addEventListener("pointerup",stopDrag);
+  viewport.addEventListener("pointercancel",stopDrag);
   viewport.addEventListener("scroll",()=>requestAnimationFrame(update),{passive:true});
   viewport.addEventListener("keydown",e=>{
     if(e.key==="ArrowRight"){e.preventDefault();step(1)}
@@ -126,7 +133,7 @@ function setupArchiveCarousel(){
 function ambientVideoStripHtml(){
   const posters=[SITE_ASSETS.photos[1],SITE_ASSETS.photos[3],SITE_ASSETS.photos[5]];
   return `<section class="motion-archive container">
-    <div class="section-head motion-head"><div><span class="eyebrow">АКТ II · СЛЕДУЮЩИЙ ХОД</span><h2>ПОДОЙДИ БЛИЖЕ К КАДРУ</h2></div><p>Каждый фрагмент ждёт своего момента. Не спешите: иногда пауза — это тоже часть стратегии.</p></div>
+    <div class="section-head motion-head"><div><span class="eyebrow">АКТ II</span><h2>СЛЕДУЮЩИЙ ХОД — ОБЩИЙ.</h2></div></div>
     <div class="motion-grid">
       ${SITE_ASSETS.videos.map((src,i)=>`<article class="motion-card motion-card-${i+1}"><video class="ambient-video" src="${src}" poster="${posters[i]}" muted playsinline loop preload="metadata"></video><div><span>0${i+1}</span><b>${["ПЕРВЫЙ ХОД","КАДР ОТВЕЧАЕТ","ПОСЛЕДНИЙ АРГУМЕНТ"][i]}</b></div></article>`).join("")}
     </div>
@@ -393,7 +400,7 @@ async function landingPage(){
   const desktopHero=window.matchMedia?.("(min-width: 901px)")?.matches;
   const heroSeen=sessionStorage.getItem("cw-main-intro-played")==="1";
   const heroMedia=desktopHero
-    ? `<video id="mainHeroVideo" class="hero-image hero-main-video hero-main-video-desktop" src="${SITE_ASSETS.heroDesktop}" poster="${SITE_ASSETS.heroFinal}" muted playsinline preload="auto"></video>`
+    ? `<video id="mainHeroVideo" class="hero-image hero-main-video hero-main-video-desktop" src="${SITE_ASSETS.heroDesktop}" poster="${SITE_ASSETS.heroDesktopFinal}" muted playsinline preload="auto"></video>`
     : heroSeen
       ? `<img class="hero-image hero-final-frame" src="${SITE_ASSETS.heroFinal}" alt="">`
       : `<video id="mainHeroVideo" class="hero-image hero-main-video" src="${SITE_ASSETS.heroVideo}" poster="${SITE_ASSETS.heroFinal}" muted playsinline preload="auto"></video>`;
@@ -401,8 +408,8 @@ async function landingPage(){
   shell(`<main>
     <section class="hero archive-hero">${heroMedia}<div class="hero-overlay"></div>
       <div class="hero-archive-stack" aria-hidden="true"><span style="background-image:url('${archivePhoto(3)}')"></span><span style="background-image:url('${archivePhoto(1)}')"></span></div>
-      <div class="container hero-content reveal"><span class="hero-kicker"><i></i> АКТ I · СУДЬБА УЖЕ НАЖАЛА PLAY</span><h1>ТЫ ДУМАЛ, ЭТО ПРОСТО КИНО?<br><em>ЭТО ВАША АРКА.</em></h1>
-      <p>Подойдите ближе к экрану. Один нажимает Play — и вся компания вступает в ту же секунду. Следующий ход уже общий.</p>
+      <div class="container hero-content reveal"><span class="hero-kicker"><i></i> АКТ I</span><h1>ВАША <em>АРКА.</em></h1>
+      <p>Один Play. Один ритм.</p>
       <div class="hero-actions"><button class="btn btn-primary" data-create>${cwIcon("play")}<span class="btn-label">ОТКРЫТЬ КОМНАТУ</span></button><a class="btn btn-secondary" href="${me?"/rooms":"/login"}" data-nav>ВОЙТИ ПО КОДУ ${cwIcon("arrow")}</a></div></div>
       ${easterPhotoHtml(0,"archive-hero-easter")}
     </section>
@@ -410,9 +417,9 @@ async function landingPage(){
     ${roomSection}
     ${ambientVideoStripHtml()}
     <section class="manifesto archive-manifesto"><div class="container manifesto-grid"><div class="manifesto-image"><img src="${archivePhoto(5)}" alt=""><span>ОДИН ЭКРАН<br>НА ВСЕХ</span>${easterPhotoHtml(2,"archive-manifesto-easter")}</div>
-      <div class="manifesto-copy"><span class="eyebrow">АКТ III · НИКАКИХ ПАРАЛЛЕЛЬНЫХ МИРОВ</span><h2>СИНХРОН — НЕ УДОБСТВО.<br>ЭТО ПОЗИЦИЯ.</h2>
+      <div class="manifesto-copy"><span class="eyebrow">АКТ III</span><h2>ОДИН РИТМ.<br>ОДИН ЭКРАН.</h2>
       <div class="feature-list"><div><b>01</b><span><strong>СИНХРОН БЕЗ КОМПРОМИССОВ</strong>Пауза, перемотка и продолжение происходят вместе — никаких параллельных реальностей.</span></div><div><b>02</b><span><strong>РЕПЛИКИ НЕ ПРОПАДАЮТ</strong>РЕПЛИКИ и реакции живут рядом с экраном, как комментарии на полях манги.</span></div><div><b>03</b><span><strong>КОД ДЛЯ СВОИХ</strong>Один код — и ваша компания уже внутри этой главы.</span></div></div></div></div></section>
-    <section class="club-notes container archive-notes"><div class="club-note-copy"><span class="eyebrow">ЛИЧНАЯ АРКА</span><h2>СУДЬБА СЧИТАЕТ МИНУТЫ.<br>ВЫ — СМОТРИТЕ ДАЛЬШЕ.</h2><p>Уровень, минуты и знаки отличия растут только из реальных совместных просмотров.</p></div>
+    <section class="club-notes container archive-notes"><div class="club-note-copy"><span class="eyebrow">ЛИЧНАЯ АРКА</span><h2>УРОВЕНЬ РАСТЁТ.<br>ИСТОРИЯ — ТОЖЕ.</h2><p>Только реальные просмотры.</p></div>
       <div class="club-collage archive-collage"><img src="${archivePhoto(0)}" alt=""><img src="${archivePhoto(4)}" alt=""><img src="${archivePhoto(2)}" alt=""><span class="ticket">CHEBUREK<br><small>WATCH PARTY</small></span>${easterPhotoHtml(5,"archive-note-easter")}</div></section>
   </main>`);
   setupMainHeroVideo();
