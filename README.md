@@ -62,6 +62,6 @@ http://localhost:3000/health
 
 ## Production notes
 
-Текущая версия рассчитана на один экземпляр Node.js и persistent disk. Это соответствует текущей SSE-архитектуре и не требует отдельного backend-домена или CORS.
+Текущая версия рассчитана на один экземпляр Node.js и persistent disk. Это соответствует текущей SSE-архитектуре и не требует отдhельного backend-домена или CORS.
 
 Перед большим публичным запуском желательно перейти с JSON-файла на PostgreSQL и добавить rate limiting, CSRF/Origin checks и автоматические резервные копии
