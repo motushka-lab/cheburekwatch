@@ -1,11 +1,12 @@
 node_modules/
 .env
-data/db.json.tmp
+.env.*
+!.env.example
+data/
 *.log
-
-data/db.json
 .runtime-media/
 .runtime-user-hero.tar
+.test-*/
+.DS_Store
+Thumbs.db
 telegram/
-.test-container-*/
-.test-telegram-*/

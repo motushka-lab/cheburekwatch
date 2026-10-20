@@ -1,6 +1,6 @@
 @echo off
 setlocal EnableExtensions
-cd /d "%~dp0"
+cd /d "%~dp0..\.."
 title CheburekWatch - One Friend
 
 set "PORT=3000"
@@ -44,11 +44,11 @@ ssh -V 2>&1
 echo.
 echo [3/4] Installing dependencies if needed...
 if not exist "node_modules\express" (
-  echo First launch: running npm install...
-  call npm install
+  echo First launch: running npm ci...
+  call npm ci
   if errorlevel 1 (
     echo.
-    echo [ERROR] npm install failed.
+    echo [ERROR] npm ci failed.
     pause
     exit /b 1
   )
@@ -56,11 +56,11 @@ if not exist "node_modules\express" (
 
 echo.
 echo Starting CheburekWatch locally on 127.0.0.1:%PORT% ...
-start "CheburekWatch Server" /min cmd /c "cd /d ""%~dp0"" && set HOST=%HOST%&& set PORT=%PORT%&& node server.js"
+start "CheburekWatch Server" /min cmd /c "cd /d ""%~dp0..\.."" && set HOST=%HOST%&& set PORT=%PORT%&& node server.js"
 
 timeout /t 3 /nobreak >nul
 
-powershell -NoProfile -Command "try { Invoke-WebRequest -UseBasicParsing http://127.0.0.1:%PORT%/api/health -TimeoutSec 5 | Out-Null; exit 0 } catch { exit 1 }"
+powershell -NoProfile -Command "try { Invoke-WebRequest -UseBasicParsing http://127.0.0.1:%PORT%/health -TimeoutSec 5 | Out-Null; exit 0 } catch { exit 1 }"
 if errorlevel 1 (
   echo.
   echo [ERROR] CheburekWatch did not start.
