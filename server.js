@@ -20,86 +20,8 @@ const TELEGRAM_ADMIN_ID = String(process.env.TELEGRAM_ADMIN_ID || "").trim();
 const TELEGRAM_BOT_API_BASE = String(process.env.TELEGRAM_BOT_API_BASE || "https://api.telegram.org").replace(/\/$/,"");
 const TELEGRAM_OFFICIAL_FILE_LIMIT = 20 * 1024 * 1024;
 
-const SITE_MEDIA_TARS = [
-  "cw-media-a.tar",
-  "cw-media-v1.tar",
-  "cw-media-v2.tar",
-  "cw-media-v3.tar",
-  "cw-media-hero.tar"
-].map(name => path.join(__dirname, "assets", name));
-const SITE_MEDIA_DIR = path.join(__dirname, ".runtime-media");
-const USER_HERO_PARTS_DIR = path.join(__dirname, "assets", "user-hero");
-
-function hydrateBase64Parts(partsDir, prefix, dest) {
-  if (!fs.existsSync(partsDir)) return false;
-  const parts = fs.readdirSync(partsDir)
-    .filter(name => name.startsWith(prefix))
-    .sort();
-  if (!parts.length) return false;
-  const encoded = parts.map(name => fs.readFileSync(path.join(partsDir, name), "utf8")).join("").replace(/\s+/g, "");
-  fs.mkdirSync(path.dirname(dest), { recursive: true });
-  fs.writeFileSync(dest, Buffer.from(encoded, "base64"));
-  return true;
-}
-
-
-function extractSiteMediaTar(tarFile, outDir) {
-  if (!fs.existsSync(tarFile)) return false;
-  const data = fs.readFileSync(tarFile);
-  fs.mkdirSync(outDir, { recursive: true });
-  let offset = 0;
-  while (offset + 512 <= data.length) {
-    const header = data.subarray(offset, offset + 512);
-    if (header.every(byte => byte === 0)) break;
-    const rawName = header.subarray(0, 100).toString("utf8").replace(/\0.*$/, "");
-    const rawSize = header.subarray(124, 136).toString("ascii").replace(/\0.*$/, "").trim();
-    const size = parseInt(rawSize || "0", 8) || 0;
-    const type = String.fromCharCode(header[156] || 48);
-    offset += 512;
-
-    const cleanName = rawName
-      .replace(/^\.\//, "")
-      .replace(/\\/g, "/")
-      .split("/")
-      .filter(part => part && part !== "." && part !== "..")
-      .join("/");
-    if (cleanName) {
-      const dest = path.join(outDir, cleanName);
-      if (type === "5") {
-        fs.mkdirSync(dest, { recursive: true });
-      } else {
-        fs.mkdirSync(path.dirname(dest), { recursive: true });
-        fs.writeFileSync(dest, data.subarray(offset, offset + size));
-      }
-    }
-    offset += Math.ceil(size / 512) * 512;
-  }
-  return true;
-}
-
-try {
-  fs.rmSync(SITE_MEDIA_DIR, { recursive: true, force: true });
-  fs.mkdirSync(SITE_MEDIA_DIR, { recursive: true });
-  let extracted = 0;
-  for (const tarFile of SITE_MEDIA_TARS) {
-    if (extractSiteMediaTar(tarFile, SITE_MEDIA_DIR)) extracted++;
-  }
-  if (extracted) console.log(`Site media bundles ready: ${extracted}`);
-} catch (error) {
-  console.warn("Site media bundles could not be extracted:", error.message);
-}
-
-try {
-  const userHeroTar = path.join(__dirname, ".runtime-user-hero.tar");
-  if (hydrateBase64Parts(USER_HERO_PARTS_DIR, "main-intro-desktop.b64.", userHeroTar)) {
-    extractSiteMediaTar(userHeroTar, SITE_MEDIA_DIR);
-    fs.rmSync(userHeroTar, { force: true });
-    console.log("Corrected desktop hero bundle ready");
-  }
-} catch (error) {
-  console.warn("Corrected desktop hero bundle could not be prepared:", error.message);
-}
-
+// Static media is tracked directly; no extraction is needed at startup.
+const SITE_MEDIA_DIR = path.join(__dirname, "public", "site-assets");
 
 fs.mkdirSync(DATA_DIR, { recursive: true });
 if (!fs.existsSync(DB_FILE)) {
