@@ -1,0 +1,14 @@
+.git
+.github
+node_modules
+.env
+.env.*
+!.env.example
+data
+.runtime-media
+.runtime-user-hero.tar
+telegram
+*.log
+test
+.test-container-*
+.test-telegram-*

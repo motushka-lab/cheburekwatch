@@ -1,16 +1,15 @@
 services:
   - type: web
     name: cheburekwatch
-    runtime: node
-    plan: 0.5c-512mb
-    buildCommand: npm ci
-    startCommand: npm start
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: 1c-2g
     healthCheckPath: /health
     autoDeployTrigger: commit
     disk:
       name: cheburekwatch-data
       mountPath: /var/data
-      sizeGB: 1
+      sizeGB: 20
     envVars:
       - key: NODE_ENV
         value: production
@@ -20,3 +19,13 @@ services:
         sync: false
       - key: TELEGRAM_ADMIN_ID
         sync: false
+      - key: TELEGRAM_API_ID
+        sync: false
+      - key: TELEGRAM_API_HASH
+        sync: false
+      - key: TELEGRAM_LOCAL_API
+        value: "true"
+      - key: TELEGRAM_LOCAL_DIR
+        value: /var/data/telegram
+      - key: TELEGRAM_MIGRATE_FROM_CLOUD
+        value: "true"

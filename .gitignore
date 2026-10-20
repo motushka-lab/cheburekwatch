@@ -9,3 +9,4 @@ data/
 .test-*/
 .DS_Store
 Thumbs.db
+telegram/
